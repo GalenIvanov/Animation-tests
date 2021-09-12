@@ -1,0 +1,17 @@
+https://flutter.dev/ 
+- Flutter is Google's UI toolkit for building beautiful,
+natively compiled applications for mobile, web, desktop,
+and embedded devices from a single codebase.
+
+https://greensock.com/
+- The standard for modern web animation. A JavaScript toolset
+greensock.com/codepen
+
+
+https://developer.mozilla.org/en-US/docs/Web/SVG/SVG_animation_with_SMIL
+
+
+Easing functions:
+https://easings.net/
+https://cubic-bezier.com/ 
+https://vimeo.com/371944028 (4:14)
