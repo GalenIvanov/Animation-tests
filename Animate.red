@@ -6,15 +6,24 @@ Red [
 
 start-t: 0
 
+;------------------------------------------------------------------------------------------------
 ; easing functions
 ; the argument must be in the range 0.0 - 1.0
+;------------------------------------------------------------------------------------------------
 easeLinear:     func [x][x]
+
 easeInOutSine:  func [x][(cos pi * x) - 1 / -2]
+
 easeInOutQuad:  func [x][either x < 0.5 [x ** 2 *  2][1 - (-2 * x + 2 ** 2 / 2)]]
+
 easeInOutCubic: func [x][either x < 0.5 [x ** 3 *  4][1 - (-2 * x + 2 ** 3 / 2)]]
+
 easeInOutQuart: func [x][either x < 0.5 [x ** 4 *  8][1 - (-2 * x + 2 ** 4 / 2)]]
+
 easeInOutQuint: func [x][either x < 0.5 [x ** 5 * 16][1 - (-2 * x + 2 ** 5 / 2)]]
+
 easeInOutExpo:  func [x][either x < 0.5 [2 ** (20 * x - 10) / 2][2 - (2 ** (-20 * x + 10)) / 2]]
+
 easeInOutCirc:  func [x][
     either x < 0.5 [
         (1 - sqrt 1 - (2 * x ** 2)) / 2
@@ -22,6 +31,28 @@ easeInOutCirc:  func [x][
         (sqrt 1 - (-2 * x + 2 ** 2)) + 1 / 2
     ]
 ]
+
+easeInOutBack: func [x /local c1 c2][
+    c1: 1.70158           ; why two constants? 
+    c2: c1 * 1.525
+    either x < 0.5 [
+        2 * x ** 2 * (c2 + 1 * 2 * x - c2) / 2
+    ][
+        2 * x - 2 ** 2 * (c2 + 1 * (x * 2 - 2) + c2) + 2 / 2
+    ]
+]
+
+easeInOutElastic: func [x /local c][
+    c: 2 * pi / 4.5
+    either x < 0.5 [
+        2 ** ( 20 * x - 10) * (sin 20 * x - 11.125 * c) / -2
+    ][
+        2 ** (-20 * x + 10) * (sin 20 * x - 11.125 * c) / 2 + 1
+    ]
+ ]
+
+easeSteps: func [x n][round/to x 1 / n]
+;------------------------------------------------------------------------------------------------
 
 rot: 0
 trans: 0x0
@@ -45,40 +76,22 @@ tween: func [
     ]    
 ]
 
-roll-the-box: func [
-    /local frame val
-]    
-[
-    now/precise 
-    frame: to float! difference now/precise st-time 
-    frame: frame % 1.0 ; map to 0..1 by getting the fractional part = one second
-        
-    rot: 90 * val: easeInOutQubic frame
-    if frame > 0.97   [
-        st-time: now/precise
-        rot: 0
-        trans: trans + 100x0 % 700x10
-        roll/2: trans
-    ]
-    roll/3/2: rot
-]
 
 view [
-    title "Rolling box"
-    base 600x200 teal rate 120
+    title "Animate"
+    base 650x200 teal rate 120
     draw [
-        line 0x180 600x180
+        line 0x180 650x180
         fill-pen yello
-        roll: translate 0x0 [rotate 0 0x180 [box -100x80 0x180]]
-        slide: translate 0x0 [box 0x10 20x30]
-        box2: scale 1 1 scale 'pen 1 1 [fill-pen sky bx: box 50x50 80x80]
+        slide: translate 0x0 [line-width 1 box 50x10 100x60] 
+        fill-pen sky bx: box 50x150 80x180
+        circ1: circle 30x110 25
     ]
     on-time [
-        ;roll-the-box
-        slide/2/x: to integer! tween 0 580 0.0 6.0 to float! difference now/precise st-time :easeInOutCubic
-        ;box2/2: tween 1 10 0.0 5.0 to float! difference now/precise st-time :easeInOutQubic
-        bx/3/x: to integer! tween 80 500.0 2.0 4.0 to float! difference now/precise st-time :easeInOutCubic
-        ;box2/6: tween 1 0.1 0.0 5.0 to float! difference now/precise st-time :easeInOutQubic
+        tm: to float! difference now/precise st-time
+        slide/2/x: to integer! tween 0 500 0.5 3.0 tm :easeInOutElastic
+        bx/3/x: to integer! tween 80 550 2.0 4.0 tm :easeInOutExpo
+        circ1/2/x: to integer! tween 30 550 0.0 6.0 tm func[x][easeSteps x 10]
     ]
     on-create [st-time: now/precise]
 ]
