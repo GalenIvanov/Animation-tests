@@ -6,7 +6,7 @@ and embedded devices from a single codebase.
 https://greensock.com/
 - The standard for modern web animation. A JavaScript toolset
 greensock.com/codepen
-
+https://greensock.com/cheatsheet/
 
 https://developer.mozilla.org/en-US/docs/Web/SVG/SVG_animation_with_SMIL
 
