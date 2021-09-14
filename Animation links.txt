@@ -10,6 +10,8 @@ https://greensock.com/cheatsheet/
 
 https://developer.mozilla.org/en-US/docs/Web/SVG/SVG_animation_with_SMIL
 
+https://docs.microsoft.com/en-us/dotnet/api/system.windows.media.animation?view=net-5.0
+
 
 Easing functions:
 https://easings.net/
