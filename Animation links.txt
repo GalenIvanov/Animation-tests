@@ -18,3 +18,7 @@ https://easings.net/
 https://cubic-bezier.com/
 https://gist.github.com/Fonserbc/3d31a25e87fdaa541ddf - Compact and simple easing functions for Unity
 https://vimeo.com/371944028 (4:14)
+
+Paths:
+https://spencermortensen.com/articles/bezier-circle/ (approximation of a circle with bezier curves)
+
