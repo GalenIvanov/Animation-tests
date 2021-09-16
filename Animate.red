@@ -6,6 +6,7 @@ Red [
 
 st-time: 0
 img: load %Atari_section2.jpg
+pascal: none
 
 ;------------------------------------------------------------------------------------------------
 ; easing functions
@@ -130,8 +131,34 @@ tween: func [
     ]
 ]
 
+;------------------------------------------------------------------------------------------------
+pascals-triangle: has [
+    {Creates the first 20 rows of the Pascal's triangle, referenced by nCk}
+    PT row
+][
+    row: make vector! [1]
+    PT: make block! 20
+    append/only PT copy row
+    collect/into [
+        loop 19 [
+            row: add append copy row 0 head insert copy row 0
+            keep/only copy row
+        ]
+    ] PT
+]
+
+nCk: func [
+    {Calculates the binomial coefficient}
+    n k
+    /local pt
+][
+    pascal/(n + 1)/(k + 1)
+]
+;------------------------------------------------------------------------------------------------
 fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
 
+pascal: pascals-triangle
+repeat n 5 [print nCk 5 n]
 
 view [
     title "Animate"
@@ -153,13 +180,13 @@ view [
         ;slide/2/x: to integer! tween  0 500 0.0 4.0 tm :ease-in-out-elastic
         ;circ1/2/x: to integer! tween 30 580 0.0 4.0 tm func[x][ease-steps x 8]
 
-        tween 'bx1/3/x     80 600 1.0 2.0 tm :ease-in-bounce
-        tween 'bx2/3/x     80 600 1.0 2.0 tm :ease-in-out-bounce
-        tween 'bx3/3/x     80 600 1.0 2.0 tm :ease-out-bounce
-        tween 'fnt/color/4 255 0 2.0 1.0 tm :ease-in-sine
-        tween 'fnt/color/4 0 255 4.5 0.5 tm :ease-in-sine
-        tween 'img/alpha   255 0 0.0 1.0 tm :ease-in-sine
-        tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-expo
+        tween 'bx1/3/x      80 600 1.0 2.0 tm :ease-in-bounce
+        tween 'bx2/3/x      80 600 1.0 2.0 tm :ease-in-out-bounce
+        tween 'bx3/3/x      80 600 1.0 2.0 tm :ease-out-bounce
+        tween 'fnt/color/4 255   0 2.0 1.0 tm :ease-in-sine
+        tween 'fnt/color/4   0 255 4.5 0.5 tm :ease-in-sine
+        tween 'img/alpha   255   0 0.0 1.0 tm :ease-in-sine
+        tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-quint
     ]
     on-create [st-time: now/precise]
 ]
