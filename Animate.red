@@ -177,10 +177,11 @@ pascal: pascals-triangle
 ;repeat n 5 [print nCk 5 n]
 
 bez-test: make block! 100
-append bez-test [line-width 2 fill-pen transparent line]
+append bez-test [line-join round line-width 2 fill-pen transparent line]
 tt: 0.0
-lim: 100 ; how many points to calculate in the Bezier curve
-bez-pts: [50x50 125x200 300x50 400x100]
+lim: 50 ; fow many points to calculate in the be\ier curve
+bez-pts: [500x500 1250x2000 3000x500 4000x1000]  ; 10x for sub-pixel precision
+
 
 view [
     title "Animate"
@@ -211,20 +212,21 @@ view [
         tween 'img/alpha   255   0 0.0 1.0 tm :ease-in-sine
         tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-quint
         ; test for bezier-n 
-		tween 'bez-pts/3/y  50 350 2.0 2.0 tm :ease-in-out-elastic
-        tween 'bez-pts/3/x 300 150 2.0 2.0 tm :ease-in-out-elastic
-        tween 'bez-pts/3/x 150 300 4.0 2.0 tm :ease-in-out-elastic
-		clear bez-test
-        append bez-test [line-width 2 fill-pen transparent line]
+        tween 'bez-pts/3/y  500 3500 2.0 2.0 tm :ease-in-out-elastic
+        tween 'bez-pts/3/x 3000 1500 2.0 2.0 tm :ease-in-out-elastic
+        tween 'bez-pts/3/x 1500 3000 4.0 2.0 tm :ease-in-out-elastic
+        
+        clear bez-test
+        append bez-test [line-join round line-width 5 fill-pen transparent scale 0.1 0.1 line]
         tt: 0.0
         repeat n lim [
             set [bx by] bezier-n bez-pts tt
             tt: n / lim
-            append bez-test reduce [as-pair to integer! bx to integer! by + 300]
+            append bez-test reduce [as-pair to integer! bx to integer! by + 3000]
         ]
         clear bz
         append bz bez-test
-		; end of test
+        ; end of test
     ]
     on-create [print "start" st-time: now/precise]
 ]
