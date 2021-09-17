@@ -133,36 +133,58 @@ tween: func [
 
 ;------------------------------------------------------------------------------------------------
 pascals-triangle: has [
-    {Creates the first 20 rows of the Pascal's triangle, referenced by nCk}
+    {Creates the first 30 rows of the Pascal's triangle, referenced by nCk}
     PT row
 ][
     row: make vector! [1]
-    PT: make block! 20
+    PT: make block! 30
     append/only PT copy row
     collect/into [
-        loop 19 [
+        loop 30 [
             row: add append copy row 0 head insert copy row 0
             keep/only copy row
         ]
     ] PT
 ]
 
-nCk: func [
-    {Calculates the binomial coefficient}
+nCk: function [
+    {Calculates the binomial coefficient, n choose k}
     n k
-    /local pt
 ][
     pascal/(n + 1)/(k + 1)
 ]
+
+bezier-n: function [
+    {Calculates a point in the Bezier curve, defined by pts, at t}
+    pts [block!] {a set of pairs}
+    t   [float!] {parameter in the range 0.0 - 1.0}
+][
+    n: (length? pts) - 1
+    bx: by: i: 0
+    foreach p pts [
+        c: (nCk n i) * ((1 - t) ** (n - i)) * (t ** i)
+        bx: c * p/x + bx
+        by: c * p/y + by
+        i: i + 1
+    ]
+    reduce [bx by]
+]
 ;------------------------------------------------------------------------------------------------
+
 fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
 
 pascal: pascals-triangle
-repeat n 5 [print nCk 5 n]
+;repeat n 5 [print nCk 5 n]
+
+bez-test: make block! 100
+append bez-test [line-width 2 fill-pen transparent line]
+tt: 0.0
+lim: 100 ; how many points to calculate in the Bezier curve
+bez-pts: [50x50 125x200 300x50 400x100]
 
 view [
     title "Animate"
-    base 650x300 teal rate 120
+    base 650x600 teal rate 60
     draw compose [
         image (img) 200x0
         font (fnt)
@@ -174,12 +196,13 @@ view [
         fill-pen sky bx1: box 50x150 80x180
         fill-pen sky bx2: box 50x200 80x230
         fill-pen sky bx3: box 50x250 80x280
+        bz: (bez-test)
+        ;curve 50x350 125x500 300x350 400x400
     ]
     on-time [
         tm: to float! difference now/precise st-time
         ;slide/2/x: to integer! tween  0 500 0.0 4.0 tm :ease-in-out-elastic
         ;circ1/2/x: to integer! tween 30 580 0.0 4.0 tm func[x][ease-steps x 8]
-
         tween 'bx1/3/x      80 600 1.0 2.0 tm :ease-in-bounce
         tween 'bx2/3/x      80 600 1.0 2.0 tm :ease-in-out-bounce
         tween 'bx3/3/x      80 600 1.0 2.0 tm :ease-out-bounce
@@ -187,6 +210,21 @@ view [
         tween 'fnt/color/4   0 255 4.5 0.5 tm :ease-in-sine
         tween 'img/alpha   255   0 0.0 1.0 tm :ease-in-sine
         tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-quint
+        ; test for bezier-n 
+		tween 'bez-pts/3/y  50 350 2.0 2.0 tm :ease-in-out-elastic
+        tween 'bez-pts/3/x 300 150 2.0 2.0 tm :ease-in-out-elastic
+        tween 'bez-pts/3/x 150 300 4.0 2.0 tm :ease-in-out-elastic
+		clear bez-test
+        append bez-test [line-width 2 fill-pen transparent line]
+        tt: 0.0
+        repeat n lim [
+            set [bx by] bezier-n bez-pts tt
+            tt: n / lim
+            append bez-test reduce [as-pair to integer! bx to integer! by + 300]
+        ]
+        clear bz
+        append bz bez-test
+		; end of test
     ]
-    on-create [st-time: now/precise]
+    on-create [print "start" st-time: now/precise]
 ]
