@@ -5,7 +5,6 @@ Red [
 ]
 
 st-time: 0
-img: load %Atari_section2.jpg
 pascal: none
 
 ;------------------------------------------------------------------------------------------------
@@ -19,22 +18,24 @@ ease-steps: func [x n][round/to x 1 / n]
 ease-in-sine: func [x][1 - cos x * pi / 2]
 ease-out-sine: func [x][sin x * pi / 2]
 ease-in-out-sine: func [x][(cos pi * x) - 1 / -2]
-; the next 4 easing functions familiescan be combined to one family: ease-...-powerN - N [2 3 4 5]
+
+ease-in-out-power: func [x n][either x < 0.5 [x ** n * (2 ** (n - 1))][1 - (-2 * x + 2 ** n / 2)]]
+
 ease-in-quad:      func [x][x ** 2]
 ease-out-quad:     func [x][2 - x * x]  ; shorter for [1 - (1 - x ** 2)]
-ease-in-out-quad:  func [x][either x < 0.5 [x ** 2 *  2][1 - (-2 * x + 2 ** 2 / 2)]]
+ease-in-out-quad:  func [x][ease-in-out-power x 2]
 
 ease-in-cubic:     func [x][x ** 3]
 ease-out-cubic:    func [x][1 - (1 - x ** 3)] 
-ease-in-out-cubic: func [x][either x < 0.5 [x ** 3 *  4][1 - (-2 * x + 2 ** 3 / 2)]]
+ease-in-out-cubic: func [x][ease-in-out-power x 3]
 
 ease-in-quart:     func [x][x ** 4]
 ease-out-quart:    func [x][1 - (1 - x ** 4)]
-ease-in-out-quart: func [x][either x < 0.5 [x ** 4 *  8][1 - (-2 * x + 2 ** 4 / 2)]]
+ease-in-out-quart: func [x][ease-in-out-power x 4]
 
 ease-in-quint:     func [x][x ** 5]
 ease-out-quint:    func [x][1 - (1 - x ** 5)]
-ease-in-out-quint: func [x][either x < 0.5 [x ** 5 * 16][1 - (-2 * x + 2 ** 5 / 2)]]
+ease-in-out-quint: func [x][ease-in-out-power x 5]
 
 ease-in-expo:      func [x][2 ** (10 * x - 10)]
 ease-out-expo:     func [x][1 - (2 ** (-10 * x))]
@@ -147,6 +148,8 @@ pascals-triangle: has [
     ] PT
 ]
 
+pascal: pascals-triangle ; stores the precalculated values for the first 30 rows  
+
 nCk: function [
     {Calculates the binomial coefficient, n choose k}
     n k
@@ -169,64 +172,66 @@ bezier-n: function [
     ]
     reduce [bx by]
 ]
+
+bezier-tangent: function [
+    {Calculates the tangent angle for a Bezier curve
+     defined with pts at point t}
+    pts [block!] {a set of pairs}
+    t   [float!] {parameter in the range 0.0 - 1.0}
+][
+    p1: bezier-n pts t
+    p2: bezier-n pts t + 0.05
+    arctangent2 p2/2 - p1/2 p2/1 - p1/1
+]
+
 ;------------------------------------------------------------------------------------------------
 
 fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
 
-pascal: pascals-triangle
-;repeat n 5 [print nCk 5 n]
-
 bez-test: make block! 100
-append bez-test [line-join round line-width 2 fill-pen transparent line]
 tt: 0.0
-lim: 50 ; fow many points to calculate in the be\ier curve
-bez-pts: [500x500 1250x2000 3000x500 4000x1000]  ; 10x for sub-pixel precision
-
+lim: 40 ; fow many points to calculate in the be\ier curve
+bez-pts: [500x1000 2500x3000 3500x500 5000x1000 6000x3000]  ; 10x for sub-pixel precision
+append bez-test [line-width 10 fill-pen transparent scale 0.1 0.1]
+append/only bez-test collect [
+    keep 'line
+    repeat n lim [
+        set [bx by] bezier-n bez-pts tt
+        tt: n / lim
+        keep reduce [as-pair to integer! bx to integer! by + 3000]
+    ]
+]    
+b-time: 0.0
 
 view [
     title "Animate"
     base 650x600 teal rate 60
     draw compose [
-        image (img) 200x0
+        fill-pen yello
+        slide: translate 0x0 [line-width 1 box 200x30 250x80] 
         font (fnt)
         txt: text 220x30 "Alpha test"
-        line 0x180 650x180
-        fill-pen yello
-        slide: translate 0x0 [line-width 1 box 50x10 100x60] 
-        fill-pen papaya circ1: circle 30x110 25
         fill-pen sky bx1: box 50x150 80x180
-        fill-pen sky bx2: box 50x200 80x230
-        fill-pen sky bx3: box 50x250 80x280
+        bx2: box 50x200 80x230
+        bx3: box 50x250 80x280
+        bx4: box 50x300 80x330
         bz: (bez-test)
-        ;curve 50x350 125x500 300x350 400x400
+        line-width 2 fill-pen papaya 
+        box5: translate 0x0 rotate 0 box -25x-15 25x15
     ]
     on-time [
         tm: to float! difference now/precise st-time
-        ;slide/2/x: to integer! tween  0 500 0.0 4.0 tm :ease-in-out-elastic
-        ;circ1/2/x: to integer! tween 30 580 0.0 4.0 tm func[x][ease-steps x 8]
-        tween 'bx1/3/x      80 600 1.0 2.0 tm :ease-in-bounce
-        tween 'bx2/3/x      80 600 1.0 2.0 tm :ease-in-out-bounce
-        tween 'bx3/3/x      80 600 1.0 2.0 tm :ease-out-bounce
+        tween 'slide/2/x   000 200 2.0 4.0 tm :ease-in-out-elastic
+        tween 'bx1/3/x      80 600 1.0 2.0 tm :ease-in-out-quad
+        tween 'bx2/3/x      80 600 1.0 2.0 tm :ease-in-out-cubic
+        tween 'bx3/3/x      80 600 1.0 2.0 tm :ease-in-out-quart
+        tween 'bx4/3/x      80 600 1.0 2.0 tm :ease-in-out-quint
         tween 'fnt/color/4 255   0 2.0 1.0 tm :ease-in-sine
         tween 'fnt/color/4   0 255 4.5 0.5 tm :ease-in-sine
-        tween 'img/alpha   255   0 0.0 1.0 tm :ease-in-sine
         tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-quint
-        ; test for bezier-n 
-        tween 'bez-pts/3/y  500 3500 2.0 2.0 tm :ease-in-out-elastic
-        tween 'bez-pts/3/x 3000 1500 2.0 2.0 tm :ease-in-out-elastic
-        tween 'bez-pts/3/x 1500 3000 4.0 2.0 tm :ease-in-out-elastic
-        
-        clear bez-test
-        append bez-test [line-join round line-width 5 fill-pen transparent scale 0.1 0.1 line]
-        tt: 0.0
-        repeat n lim [
-            set [bx by] bezier-n bez-pts tt
-            tt: n / lim
-            append bez-test reduce [as-pair to integer! bx to integer! by + 3000]
-        ]
-        clear bz
-        append bz bez-test
-        ; end of test
+        tween 'b-time        0 100 1.0 2.0 tm :ease-in-out-cubic
+        box5/4: bezier-tangent bez-pts b-time / 100.0
+        box5/2: (0x3000 + to-pair bezier-n bez-pts b-time / 100.0) * 0.1 
     ]
     on-create [print "start" st-time: now/precise]
 ]
