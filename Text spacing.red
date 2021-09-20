@@ -1,34 +1,27 @@
 Red [
-    title: "Animation dialect tests"
+    title: "caret-to-offset tests"
     author: "Galen Ivanov"
     needs: view
 ]
 
-message: "This is a Simple text"
-scale-factor: 1;system/view/metrics/dpi / 96.0
-; font for draw
-font18: make font! [name: "Verdana" size: 18 color: teal]
+message: "Know your distance!"
+font20: make font! [name: "Verdana" size: 20 color: black]
 txt: make face! compose [size: 800X200 type: 'rich-text text: (message)]
-txt/font: font18 ;make font! [name: "Verdana" size: 18 color: white]
+txt/font: font20
 
-lens: copy []
-repeat n length? message [
-    append lens compose [
-        line (1x0 * (caret-to-offset txt n))
-             (1x0 * (caret-to-offset txt n) + 0x30)         
+len: collect [
+    repeat n length? message [
+        keep compose [line (p: 1x0 * caret-to-offset txt n) (p + 0x30)]
     ]
 ]
 
-;probe lens
-
-view compose/deep [
-    backdrop beige
-    news: base 300x50 0.255.0.255
+view compose [
+    title "caret-to-offset"
+    backdrop beige 
+	base 280x50 beige
     draw compose[
-        pen black
-        ;box 0x0 (as-pair first last lens 30) 
-        font font18 text 0x0 (message)
-        pen black
-        (lens)
+	    translate 5x5
+        font font20 text 0x0 (message)
+        line-width 2 pen gray (len)
     ]
 ]
