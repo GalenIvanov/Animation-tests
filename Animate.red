@@ -160,8 +160,11 @@ nCk: function [
 bezier-n: function [
     {Calculates a point in the Bezier curve, defined by pts, at t}
     pts [block!] {a set of pairs}
-    t   [float!] {parameter in the range 0.0 - 1.0}
+    t   [float!] {offset in the curve, from 0.0 to 1.0}
 ][
+    ; !!! The points around 0.0 and 1.00 are much sparsely located!
+    ;     This leads to uneven placement of objects along the curve !!!
+    ; https://dev.to/zergon321/dividing-a-bezier-curve-into-equal-segments-2hh8
     n: (length? pts) - 1
     bx: by: i: 0
     foreach p pts [
@@ -173,26 +176,86 @@ bezier-n: function [
     reduce [bx by]
 ]
 
-bezier-tangent: function [
+bezier-tangent: function [  ; needs a better name!
     {Calculates the tangent angle for a Bezier curve
      defined with pts at point t}
     pts [block!] {a set of pairs}
-    t   [float!] {parameter in the range 0.0 - 1.0}
+    t   [float!] {offset in the curve, from 0.0 to 1.0}
 ][
     p1: bezier-n pts t
     p2: bezier-n pts t + 0.05
     arctangent2 p2/2 - p1/2 p2/1 - p1/1
 ]
 
+char-offsets: function [
+    {Calculates the offsets of the characters
+    in a text for a given font settings}
+    src [string!]
+    fnt [object!]
+][
+    ; the size must be proportional to the src length times font size!
+    txt: make face! compose [size: 3000X500 type: 'rich-text text: (src)]
+    txt/font: copy fnt
+    collect [
+        repeat n length? src [
+            keep caret-to-offset txt n
+        ]
+    ]
+]
+
+text-along-curve: function [
+    {Calculates the positions and orientatons
+    of characters in a string along a curve
+    and returns a draw block ready to be used}
+    src     [string!] {source, text to display}
+    offs    [block!]  {a block of starting offsets for each character}
+    spacing [float!]  {multiplier for the space between the characters}
+    dst     [block!]  {destination, a set of 2d points defining a Bezier curve}
+    t       [float!]  {offset in the curve, from 0.0 to 1.0}
+][
+    len: last offs
+    move offs tail offs    
+    draw-bl: make block! 5 * length? src
+    append draw-bl [scale 0.1 0.1]
+    tt: t
+    collect/into [
+        repeat n length? src [
+            c-offs: to-pair bezier-n dst tt
+            angle: bezier-tangent dst tt
+            keep compose/deep [
+                translate (c-offs) [
+                    rotate (angle)
+                    scale 10 10
+                    text 0x-20 (to-string src/:n )  ; y is arbitrary here - must change it!
+                    ;box -10x-10 10x10
+                ]
+            ]
+            tt: t + to-float offs/:n/x / len/x ;the text is stretched 
+            if tt > 1.0 [break]
+         ]
+    ] draw-bl
+]
+
+
 ;------------------------------------------------------------------------------------------------
 
 fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
+fnt2: make font! [name: "Verdana" size: 20 color: papaya]
+text1: "The Red stack consists of two " ;main layers" ;, the high-level Red language"
+ofs: char-offsets text1 fnt2
+print ofs
 
 bez-test: make block! 100
 tt: 0.0
 lim: 40 ; fow many points to calculate in the be\ier curve
-bez-pts: [500x1000 2500x3000 3500x500 5000x1000 6000x3000]  ; 10x for sub-pixel precision
-append bez-test [line-width 10 fill-pen transparent scale 0.1 0.1]
+bez-pts: [500x1000 1500x3000 2500x-1000 3500x3000 4500x1000]  ; 10x for sub-pixel precision
+
+
+st-txt: 0.001 
+bez-text: text-along-curve text1 ofs 1.0 bez-pts 0.0
+;probe bez-text
+
+append bez-test [line-width 20 fill-pen transparent scale 0.1 0.1]
 append/only bez-test collect [
     keep 'line
     repeat n lim [
@@ -201,26 +264,35 @@ append/only bez-test collect [
         keep reduce [as-pair to integer! bx to integer! by + 3000]
     ]
 ]    
+
+
 b-time: 0.0
 
 view [
     title "Animate"
+    elapsed: text "0.0"
     base 650x600 teal rate 60
     draw compose [
         fill-pen yello
         slide: translate 0x0 [line-width 1 box 200x30 250x80] 
-        font (fnt)
+        font fnt
         txt: text 220x30 "Alpha test"
         fill-pen sky bx1: box 50x150 80x180
         bx2: box 50x200 80x230
         bx3: box 50x250 80x280
         bx4: box 50x300 80x330
+        pen gray
         bz: (bez-test)
-        line-width 2 fill-pen papaya 
-        box5: translate 0x0 rotate 0 box -25x-15 25x15
+        line-width 2 fill-pen papaya
+        font fnt2
+        translate 0x300
+        bzt: (bez-text)
+        ;box5: translate 0x0 rotate 0 box -25x-15 25x15
+        
     ]
     on-time [
         tm: to float! difference now/precise st-time
+        elapsed/data: round/to tm 0.01
         tween 'slide/2/x   000 200 2.0 4.0 tm :ease-in-out-elastic
         tween 'bx1/3/x      80 600 1.0 2.0 tm :ease-in-out-quad
         tween 'bx2/3/x      80 600 1.0 2.0 tm :ease-in-out-cubic
@@ -230,8 +302,13 @@ view [
         tween 'fnt/color/4   0 255 4.5 0.5 tm :ease-in-sine
         tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-quint
         tween 'b-time        0 100 1.0 2.0 tm :ease-in-out-cubic
-        box5/4: bezier-tangent bez-pts b-time / 100.0
-        box5/2: (0x3000 + to-pair bezier-n bez-pts b-time / 100.0) * 0.1 
+        ;tween 'st-txt        100 1 2.0 6.0 tm :ease-in-out-sine
+        
+        ;clear find face/draw 'bzt
+        ;append face/draw text-along-curve text1 ofs 1.0 bez-pts st-txt / 100.0
+        
+        ;box5/4: bezier-tangent bez-pts b-time / 100.0
+        ;box5/2: (0x3000 + to-pair bezier-n bez-pts b-time / 100.0) * 0.1 
     ]
     on-create [print "start" st-time: now/precise]
 ]
