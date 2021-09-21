@@ -187,6 +187,65 @@ bezier-tangent: function [  ; needs a better name!
     arctangent2 p2/2 - p1/2 p2/1 - p1/1
 ]
 
+bezier-lengths: function [
+    {Returns a block of accumulated lengths of the linear segments
+     a bezier curve can be simplified to}
+    pts  [block!]   {a set of 2d points defining a Bezier curve}
+    segn [integer!] {number of linear segments to divide the curve into}
+][
+    t: 0.0
+    length: 0.0
+    p0: bezier-n pts t
+    collect [
+        repeat n segn [
+           t: 1.0 + n / segn
+           p1: bezier-n pts t
+           keep length: length + sqrt p1/1 - p0/1 ** 2 + (p1/2 - p0/2 ** 2)
+           p0: copy p1
+        ]
+    ]
+]
+
+half: func [a b][to integer! a + b / 2]
+
+b-search: function [
+    {Returns the index of the largest element of src 
+    that is less than or equal to target}
+    src    [block!]  {block of numbers}
+    target [number!] {the number to be searched}
+][
+    L: 1
+    R: length? src
+    M: half L R
+    while [L < R][
+        case [
+            src/:M < target [L: M + 1]
+            src/:M > target [R: M - 1]
+        ]
+        M: half L R
+    ]
+    M
+]
+
+bezier-lerp: function [
+    {Returns a point in a Bezier curve. The distance from the 
+    starting point is linearly interpolated.}
+    pts  [block!] {a set of 2d points defining a Bezier curve}
+    u    [float!] {parameter of the interpolation, from 0.0 to 1.0}
+    seg  [block!] {a precalculated block of segment lengths}
+][
+    len: to integer! u * last seg ; the target length. We need to obtain t from it
+    either len = idx: b-search seg len [
+        to float! idx / last seg
+    ][
+        l1: seg/:idx
+        l2: any [seg/(idx + 1) last seg] 
+        seg-t: len - l1 / (l2 - l1)
+        to float! idx + seg-t / length? seg
+    ]
+    
+]
+
 char-offsets: function [
     {Calculates the offsets of the characters
     in a text for a given font settings}
@@ -211,7 +270,9 @@ text-along-curve: function [
     offs    [block!]  {a block of starting offsets for each character}
     spacing [float!]  {multiplier for the space between the characters}
     dst     [block!]  {destination, a set of 2d points defining a Bezier curve}
+    seg     [block!]  {a block of bezier segment lengths}
     t       [float!]  {offset in the curve, from 0.0 to 1.0}
+    fix?    [logic!]  {apply normalization?} 
 ][
     len: last offs
     move offs tail offs    
@@ -220,18 +281,18 @@ text-along-curve: function [
     tt: t
     collect/into [
         repeat n length? src [
-            c-offs: to-pair bezier-n dst tt
-            angle: bezier-tangent dst tt
+            ttt: either fix? [bezier-lerp dst tt seg][tt]
+            c-offs: to-pair bezier-n dst ttt
+            angle: bezier-tangent dst ttt
             keep compose/deep [
                 translate (c-offs) [
                     rotate (angle)
                     scale 10 10
-                    text 0x-20 (to-string src/:n )  ; y is arbitrary here - must change it!
-                    ;box -10x-10 10x10
+                    text 0x-16 (to-string src/:n )  ; y is arbitrary here - must change it!
                 ]
             ]
-            tt: t + to-float offs/:n/x / len/x ;the text is stretched 
-            if tt > 1.0 [break]
+            tt: t + to-float offs/:n/x / len/x * spacing ;the text is stretched 
+            if tt >= 1.0 [break]
          ]
     ] draw-bl
 ]
@@ -240,68 +301,72 @@ text-along-curve: function [
 ;------------------------------------------------------------------------------------------------
 
 fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
-fnt2: make font! [name: "Verdana" size: 20 color: papaya]
-text1: "The Red stack consists of two " ;main layers" ;, the high-level Red language"
+fnt2: make font! [name: "Verdana" size: 20 color: red]
+text1: "The Red stack consists of two main layers"
 ofs: char-offsets text1 fnt2
-print ofs
 
 bez-test: make block! 100
 tt: 0.0
-lim: 40 ; fow many points to calculate in the be\ier curve
-bez-pts: [500x1000 1500x3000 2500x-1000 3500x3000 4500x1000]  ; 10x for sub-pixel precision
+lim: 100 ; fow many points to calculate in the be\ier curve
+bez-pts: [500x1000 1500x3000 2800x-2000 4500x3000 6000x500]  ; 10x for sub-pixel precision
+bez-segs: bezier-lengths bez-pts 500
 
+st-txt: 0.001
+bez-text: text-along-curve text1 copy ofs 0.95 bez-pts  bez-segs 0.01 false
+bez-text2: text-along-curve text1 ofs 0.92 bez-pts  bez-segs 0.01 true
 
-st-txt: 0.001 
-bez-text: text-along-curve text1 ofs 1.0 bez-pts 0.0
-;probe bez-text
-
-append bez-test [line-width 20 fill-pen transparent scale 0.1 0.1]
+append bez-test [line-width 350 fill-pen transparent scale 0.1 0.1]
 append/only bez-test collect [
     keep 'line
     repeat n lim [
         set [bx by] bezier-n bez-pts tt
         tt: n / lim
-        keep reduce [as-pair to integer! bx to integer! by + 3000]
+        keep reduce [as-pair to integer! bx to integer! by]
     ]
-]    
 
+]    
 
 b-time: 0.0
 
 view [
     title "Animate"
-    elapsed: text "0.0"
-    base 650x600 teal rate 60
+    ;elapsed: text "0.0"
+    base 650x350 teal rate 60
     draw compose [
-        fill-pen yello
-        slide: translate 0x0 [line-width 1 box 200x30 250x80] 
-        font fnt
-        txt: text 220x30 "Alpha test"
-        fill-pen sky bx1: box 50x150 80x180
-        bx2: box 50x200 80x230
-        bx3: box 50x250 80x280
-        bx4: box 50x300 80x330
-        pen gray
+        ;fill-pen yello
+        ;slide: translate 0x0 [line-width 1 box 200x30 250x80] 
+        ;font fnt
+        ;txt: text 220x30 "Alpha test"
+        ;fill-pen sky bx1: box 50x150 80x180
+        ;bx2: box 50x200 80x230
+        ;bx3: box 50x250 80x280
+        ;bx4: box 50x300 80x330
+        pen yello
+        line-width 30 
         bz: (bez-test)
-        line-width 2 fill-pen papaya
+        
         font fnt2
-        translate 0x300
+        ;translate 0x300
         bzt: (bez-text)
+        translate 0x1000
+        scale 10 10
+        (bez-test)
+        (bez-text2)
         ;box5: translate 0x0 rotate 0 box -25x-15 25x15
         
     ]
     on-time [
         tm: to float! difference now/precise st-time
-        elapsed/data: round/to tm 0.01
-        tween 'slide/2/x   000 200 2.0 4.0 tm :ease-in-out-elastic
-        tween 'bx1/3/x      80 600 1.0 2.0 tm :ease-in-out-quad
-        tween 'bx2/3/x      80 600 1.0 2.0 tm :ease-in-out-cubic
-        tween 'bx3/3/x      80 600 1.0 2.0 tm :ease-in-out-quart
-        tween 'bx4/3/x      80 600 1.0 2.0 tm :ease-in-out-quint
-        tween 'fnt/color/4 255   0 2.0 1.0 tm :ease-in-sine
-        tween 'fnt/color/4   0 255 4.5 0.5 tm :ease-in-sine
-        tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-quint
-        tween 'b-time        0 100 1.0 2.0 tm :ease-in-out-cubic
+        ;elapsed/data: round/to tm 0.01
+        ;tween 'slide/2/x   000 200 2.0 4.0 tm :ease-in-out-elastic
+        ;tween 'bx1/3/x      80 600 1.0 2.0 tm :ease-in-out-quad
+        ;tween 'bx2/3/x      80 600 1.0 2.0 tm :ease-in-out-cubic
+        ;tween 'bx3/3/x      80 600 1.0 2.0 tm :ease-in-out-quart
+        ;tween 'bx4/3/x      80 600 1.0 2.0 tm :ease-in-out-quint
+        ;tween 'fnt/color/4 255   0 2.0 1.0 tm :ease-in-sine
+        ;tween 'fnt/color/4   0 255 4.5 0.5 tm :ease-in-sine
+        ;tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-quint
+        ;tween 'b-time        0 100 1.0 2.0 tm :ease-in-out-cubic
         ;tween 'st-txt        100 1 2.0 6.0 tm :ease-in-out-sine
         
         ;clear find face/draw 'bzt
