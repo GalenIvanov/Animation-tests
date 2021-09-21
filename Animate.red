@@ -183,7 +183,7 @@ bezier-tangent: function [  ; needs a better name!
     t   [float!] {offset in the curve, from 0.0 to 1.0}
 ][
     p1: bezier-n pts t
-    p2: bezier-n pts t + 0.05
+    p2: bezier-n pts t + 0.01
     arctangent2 p2/2 - p1/2 p2/1 - p1/1
 ]
 
@@ -243,7 +243,6 @@ bezier-lerp: function [
         seg-t: len - l1 / (l2 - l1)
         to float! idx + seg-t / length? seg
     ]
-    
 ]
 
 char-offsets: function [
@@ -253,11 +252,11 @@ char-offsets: function [
     fnt [object!]
 ][
     ; the size must be proportional to the src length times font size!
-    txt: make face! compose [size: 3000X500 type: 'rich-text text: (src)]
+    txt: make face! compose [size: 30000X500 type: 'rich-text text: (src)]
     txt/font: copy fnt
     collect [
         repeat n length? src [
-            keep caret-to-offset txt n
+            keep (caret-to-offset txt n) / 10x10
         ]
     ]
 ]
@@ -275,7 +274,9 @@ text-along-curve: function [
     fix?    [logic!]  {apply normalization?} 
 ][
     len: last offs
-    move offs tail offs    
+    ;ww: copy offs ;test
+    move offs tail offs
+    
     draw-bl: make block! 5 * length? src
     append draw-bl [scale 0.1 0.1]
     tt: t
@@ -284,11 +285,15 @@ text-along-curve: function [
             ttt: either fix? [bezier-lerp dst tt seg][tt]
             c-offs: to-pair bezier-n dst ttt
             angle: bezier-tangent dst ttt
+            
+            ;d: to integer! (pick (any [ww/(n + 1) 0x0]) - ww/:n 1) / 2 ;test
+            
             keep compose/deep [
                 translate (c-offs) [
-                    rotate (angle)
-                    scale 10 10
-                    text 0x-16 (to-string src/:n )  ; y is arbitrary here - must change it!
+                    rotate (angle) ;(as-pair d -200)
+                    ;scale 10 10
+                    text 0x-180 (to-string src/:n )  ; y is arbitrary here - must change it!
+                    ;text (as-pair d -200) (to-string src/:n) 
                 ]
             ]
             tt: t + to-float offs/:n/x / len/x * spacing ;the text is stretched 
@@ -301,7 +306,7 @@ text-along-curve: function [
 ;------------------------------------------------------------------------------------------------
 
 fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
-fnt2: make font! [name: "Verdana" size: 20 color: red]
+fnt2: make font! [name: "Verdana" size: 200 color: red]
 text1: "The Red stack consists of two main layers"
 ofs: char-offsets text1 fnt2
 
@@ -313,7 +318,7 @@ bez-segs: bezier-lengths bez-pts 500
 
 st-txt: 0.001
 bez-text: text-along-curve text1 copy ofs 0.95 bez-pts  bez-segs 0.01 false
-bez-text2: text-along-curve text1 ofs 0.92 bez-pts  bez-segs 0.01 true
+bez-text2: text-along-curve text1 copy ofs 0.92 bez-pts  bez-segs 0.01 true
 
 append bez-test [line-width 350 fill-pen transparent scale 0.1 0.1]
 append/only bez-test collect [
