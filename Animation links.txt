@@ -21,4 +21,4 @@ https://vimeo.com/371944028 (4:14)
 
 Paths:
 https://spencermortensen.com/articles/bezier-circle/ (approximation of a circle with bezier curves)
-
+http://www.planetclegg.com/projects/WarpingTextToSplines.html
