@@ -293,17 +293,19 @@ text-along-curve: function [
     tt: t
     append/only draw-bl collect [
         repeat n length? src [
-            d: sz/:n / 2
+            d: sz/:n / -2
             ttt: either fix? [bezier-lerp dst tt seg][tt]
             c-offs: to-pair bezier-n dst ttt
-            angle: bezier-tangent dst ttt
+            angle: bezier-tangent dst ttt ; + (sz/:n/x / 2 / len/x) 
             keep compose/deep [
                 translate (c-offs) [
-                    rotate (angle) (d)
-                    text (0x0) (to-string src/:n)
+                    rotate (angle) 
+                    text (0x1 * d) (to-string src/:n)
+                    line-width 10 pen black 
+                    line (0x-200) (0x200)
                 ]
             ]
-            tt: to-float offs/:n/x / len/x * spacing + t 
+            tt: to-float offs/:n/x / len/x * spacing + t  ; (sz/:n/x / 2)
             if tt > 1.0 [break]
          ]
     ] 
