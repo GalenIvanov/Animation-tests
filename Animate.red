@@ -201,7 +201,7 @@ bezier-lengths: function [
            t: 1.0 + n / segn
            p1: bezier-n pts t
            keep length: length + sqrt p1/1 - p0/1 ** 2 + (p1/2 - p0/2 ** 2)
-           p0: copy p1
+           p0: p1
         ]
     ]
 ]
@@ -256,17 +256,29 @@ char-offsets: function [
     txt/font: copy fnt
     collect [
         repeat n length? src [
-            keep (caret-to-offset txt n) / 10x10
+            keep (caret-to-offset txt n) ;/ 10x10
         ]
     ]
 ]
 
+char-sizes: function [
+    {Calculates the sizes of bounding boxes for each character in a string}
+    src [string!]
+    fnt [object!]
+][
+    txt: make face! compose [size: 30000X500 type: 'text text: (src)]
+    txt/font: copy fnt
+    collect [
+        foreach c src [keep size-text/with txt to string! c]
+    ]
+]
+
 text-along-curve: function [
-    {Calculates the positions and orientatons
-    of characters in a string along a curve
-    and returns a draw block ready to be used}
+    {Calculates the positions and orientatons of characters in a string
+    along a curve and returns a draw block ready to be used}
     src     [string!] {source, text to display}
     offs    [block!]  {a block of starting offsets for each character}
+    sz      [block!]  {a block of character sizes}
     spacing [float!]  {multiplier for the space between the characters}
     dst     [block!]  {destination, a set of 2d points defining a Bezier curve}
     seg     [block!]  {a block of bezier segment lengths}
@@ -274,41 +286,37 @@ text-along-curve: function [
     fix?    [logic!]  {apply normalization?} 
 ][
     len: last offs
-    ;ww: copy offs ;test
     move offs tail offs
     
     draw-bl: make block! 5 * length? src
     append draw-bl [scale 0.1 0.1]
     tt: t
-    collect/into [
+    append/only draw-bl collect [
         repeat n length? src [
+            d: sz/:n / 2
             ttt: either fix? [bezier-lerp dst tt seg][tt]
             c-offs: to-pair bezier-n dst ttt
             angle: bezier-tangent dst ttt
-            
-            ;d: to integer! (pick (any [ww/(n + 1) 0x0]) - ww/:n 1) / 2 ;test
-            
             keep compose/deep [
                 translate (c-offs) [
-                    rotate (angle) ;(as-pair d -200)
-                    ;scale 10 10
-                    text 0x-180 (to-string src/:n )  ; y is arbitrary here - must change it!
-                    ;text (as-pair d -200) (to-string src/:n) 
+                    rotate (angle) (d)
+                    text (0x0) (to-string src/:n)
                 ]
             ]
-            tt: t + to-float offs/:n/x / len/x * spacing ;the text is stretched 
-            if tt >= 1.0 [break]
+            tt: to-float offs/:n/x / len/x * spacing + t 
+            if tt > 1.0 [break]
          ]
-    ] draw-bl
+    ] 
 ]
 
 
 ;------------------------------------------------------------------------------------------------
 
 fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
-fnt2: make font! [name: "Verdana" size: 200 color: red]
+fnt2: make font! [name: "Verdana" size: 200 color: papaya]
 text1: "The Red stack consists of two main layers"
 ofs: char-offsets text1 fnt2
+char-sz: char-sizes text1 fnt2
 
 bez-test: make block! 100
 tt: 0.0
@@ -317,10 +325,10 @@ bez-pts: [500x1000 1500x3000 2800x-2000 4500x3000 6000x500]  ; 10x for sub-pixel
 bez-segs: bezier-lengths bez-pts 500
 
 st-txt: 0.001
-bez-text: text-along-curve text1 copy ofs 0.95 bez-pts  bez-segs 0.01 false
-bez-text2: text-along-curve text1 copy ofs 0.92 bez-pts  bez-segs 0.01 true
+bez-text: text-along-curve text1 copy ofs char-sz 0.95 bez-pts  bez-segs 0.01 false
+bez-text2: text-along-curve text1 copy ofs char-sz 0.92 bez-pts  bez-segs 0.01 true
 
-append bez-test [line-width 350 fill-pen transparent scale 0.1 0.1]
+append bez-test [line-cap round line-width 350 fill-pen transparent scale 0.1 0.1]
 append/only bez-test collect [
     keep 'line
     repeat n lim [
@@ -347,14 +355,22 @@ view [
         ;bx3: box 50x250 80x280
         ;bx4: box 50x300 80x330
         pen yello
-        line-width 30 
+        ;line-width 30 
         bz: (bez-test)
         
         font fnt2
         ;translate 0x300
         bzt: (bez-text)
-        translate 0x1000
-        scale 10 10
+        
+        ;line-width 10
+        ;box 1000x200 1500x400
+        ;translate 1000x200 [
+        ;    rotate 45 250x100
+        ;    box 0x0 500x200
+        ;]    
+       
+        ;text 0x0 (text1)
+        translate 0x100
         (bez-test)
         (bez-text2)
         ;box5: translate 0x0 rotate 0 box -25x-15 25x15
