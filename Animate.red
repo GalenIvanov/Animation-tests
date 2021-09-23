@@ -162,9 +162,6 @@ bezier-n: function [
     pts [block!] {a set of pairs}
     t   [float!] {offset in the curve, from 0.0 to 1.0}
 ][
-    ; !!! The points around 0.0 and 1.00 are much sparsely located!
-    ;     This leads to uneven placement of objects along the curve !!!
-    ; https://dev.to/zergon321/dividing-a-bezier-curve-into-equal-segments-2hh8
     n: (length? pts) - 1
     bx: by: i: 0
     foreach p pts [
@@ -234,6 +231,9 @@ bezier-lerp: function [
     u    [float!] {parameter of the interpolation, from 0.0 to 1.0}
     seg  [block!] {a precalculated block of segment lengths}
 ][
+    ; !!! The points around 0.0 and 1.00 are much sparsely located!
+    ;     This leads to uneven placement of objects along the curve !!!
+    ; https://dev.to/zergon321/dividing-a-bezier-curve-into-equal-segments-2hh8
     len: to integer! u * last seg ; the target length. We need to obtain t from it
     either len = idx: b-search seg len [
         to float! idx / last seg
@@ -251,26 +251,23 @@ char-offsets: function [
     src [string!]
     fnt [object!]
 ][
-    ; the size must be proportional to the src length times font size!
-    txt: make face! compose [size: 30000X500 type: 'rich-text text: (src)]
+    new-src: head append copy src "M"  ; to find the last offset
+    size: as-pair fnt/size * length? new-src fnt/size
+    txt: make face! compose [size: (size) type: 'rich-text text: (new-src)]
     txt/font: copy fnt
-    collect [
-        repeat n length? src [
-            keep (caret-to-offset txt n) ;/ 10x10
-        ]
-    ]
+    next collect [repeat n length? new-src [keep (caret-to-offset txt n)]]
 ]
 
-char-sizes: function [
-    {Calculates the sizes of bounding boxes for each character in a string}
+text-box-size: function [
+    {Calculates the size of the bounding box
+    of a text for a given font settings}
     src [string!]
     fnt [object!]
 ][
-    txt: make face! compose [size: 30000X500 type: 'text text: (src)]
+    size: as-pair fnt/size * length? src fnt/size
+    txt: make face! compose [size: (size)  type: 'text text: (src)]
     txt/font: copy fnt
-    collect [
-        foreach c src [keep size-text/with txt to string! c]
-    ]
+    size-text txt
 ]
 
 text-along-curve: function [
@@ -278,57 +275,68 @@ text-along-curve: function [
     along a curve and returns a draw block ready to be used}
     src     [string!] {source, text to display}
     offs    [block!]  {a block of starting offsets for each character}
-    sz      [block!]  {a block of character sizes}
     spacing [float!]  {multiplier for the space between the characters}
     dst     [block!]  {destination, a set of 2d points defining a Bezier curve}
     seg     [block!]  {a block of bezier segment lengths}
     t       [float!]  {offset in the curve, from 0.0 to 1.0}
+    sz      [pair!]   {size of the bounding box of the text}
     fix?    [logic!]  {apply normalization?} 
 ][
-    len: last offs
-    move offs tail offs
-    
-    draw-bl: make block! 5 * length? src
+    len: first at tail offs -2
+    coef: len/x / last seg
+        
+    draw-bl: make block! 10 * length? src
     append draw-bl [scale 0.1 0.1]
-    tt: t
+    tt: t        ; where to start 
+    sz: sz * 0x1 ; we need only y
+    
+    d: d0: 0x0
     append/only draw-bl collect [
         repeat n length? src [
-            d: sz/:n / -2
-            ttt: either fix? [bezier-lerp dst tt seg][tt]
+            d: offs/:n - d0 * coef + sz / 2
+            ;print [n "->" d0]
+            ;d/x: to integer! (offs/:n/x - d0/x * coef + sz/x / 2.0)
+            ;d/y: to integer! (offs/:n/y - d0/y * coef + sz/y / 2.0)
+            ;print [n d]
+            
+            ttt: either fix? [bezier-lerp dst tt + (d/x / len/x * spacing) seg][tt]
+            if ttt >= 1.0 [break]
             c-offs: to-pair bezier-n dst ttt
-            angle: bezier-tangent dst ttt ; + (sz/:n/x / 2 / len/x) 
+            angle: bezier-tangent dst ttt
             keep compose/deep [
-                translate (c-offs) [
-                    rotate (angle) 
-                    text (0x1 * d) (to-string src/:n)
-                    line-width 10 pen black 
-                    line (0x-200) (0x200)
+                translate (c-offs - d) [
+                    rotate (angle) (d)
+                    text 0x0 (to-string src/:n) 
+                    ;line-width 10 pen gray 
+                    ;line (d - sz) (d + sz) ; 
                 ]
             ]
-            tt: to-float offs/:n/x / len/x * spacing + t  ; (sz/:n/x / 2)
+            tt: to-float (offs/:n/x / len/x * spacing + t)
+            d0: offs/:n
             if tt > 1.0 [break]
-         ]
-    ] 
+        ]
+    ]
+    draw-bl    
 ]
 
 
 ;------------------------------------------------------------------------------------------------
 
 fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
-fnt2: make font! [name: "Verdana" size: 200 color: papaya]
-text1: "The Red stack consists of two main layers"
+fnt2: make font! [name: "Verdana" size: 160 color: papaya]
+text1: "Red is a next-gen programming language, strongly inspired by REBOL"
 ofs: char-offsets text1 fnt2
-char-sz: char-sizes text1 fnt2
+txt-sz: text-box-size text1 fnt2
 
 bez-test: make block! 100
 tt: 0.0
 lim: 100 ; fow many points to calculate in the be\ier curve
-bez-pts: [500x1000 1500x3000 2800x-2000 4500x3000 6000x500]  ; 10x for sub-pixel precision
+bez-pts: [500x600 2000x4000 2800x-3000 4500x3500 6200x1500]  ; 10x for sub-pixel precision
 bez-segs: bezier-lengths bez-pts 500
 
-st-txt: 0.001
-bez-text: text-along-curve text1 copy ofs char-sz 0.95 bez-pts  bez-segs 0.01 false
-bez-text2: text-along-curve text1 copy ofs char-sz 0.92 bez-pts  bez-segs 0.01 true
+st-txt: 0.95
+bez-text:  text-along-curve text1 ofs 0.95 bez-pts bez-segs 0.0 txt-sz false
+bez-text2: text-along-curve text1 ofs 0.98 bez-pts bez-segs 0.0 txt-sz true
 
 append bez-test [line-cap round line-width 350 fill-pen transparent scale 0.1 0.1]
 append/only bez-test collect [
@@ -346,7 +354,7 @@ b-time: 0.0
 view [
     title "Animate"
     ;elapsed: text "0.0"
-    base 650x350 teal rate 60
+    base 650x350 teal rate 1
     draw compose [
         ;fill-pen yello
         ;slide: translate 0x0 [line-width 1 box 200x30 250x80] 
@@ -358,11 +366,9 @@ view [
         ;bx4: box 50x300 80x330
         pen yello
         ;line-width 30 
-        bz: (bez-test)
-        
+        ;bz: (bez-test)
         font fnt2
-        ;translate 0x300
-        bzt: (bez-text)
+        ;bzt: (bez-text)
         
         ;line-width 10
         ;box 1000x200 1500x400
@@ -372,9 +378,9 @@ view [
         ;]    
        
         ;text 0x0 (text1)
-        translate 0x100
+        translate 0x50
         (bez-test)
-        (bez-text2)
+        bz2: (bez-text2)
         ;box5: translate 0x0 rotate 0 box -25x-15 25x15
         
     ]
@@ -390,10 +396,12 @@ view [
         ;tween 'fnt/color/4   0 255 4.5 0.5 tm :ease-in-sine
         ;tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-quint
         ;tween 'b-time        0 100 1.0 2.0 tm :ease-in-out-cubic
-        ;tween 'st-txt        100 1 2.0 6.0 tm :ease-in-out-sine
+        ;tween 'st-txt        90 0 2.0 1.0 tm :ease-in-out-sine
         
         ;clear find face/draw 'bzt
-        ;append face/draw text-along-curve text1 ofs 1.0 bez-pts st-txt / 100.0
+        ;bez-tex2: text-along-curve text1 ofs 1.0 bez-pts bez-segs st-txt / 100.0 txt-sz true
+        ;save %bez-text2.txt bez-text2
+        ;change/part find/tail face/draw 'bz2 bez-text2 length? bez-text2
         
         ;box5/4: bezier-tangent bez-pts b-time / 100.0
         ;box5/2: (0x3000 + to-pair bezier-n bez-pts b-time / 100.0) * 0.1 
