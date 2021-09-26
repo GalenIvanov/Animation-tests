@@ -170,7 +170,7 @@ bezier-n: function [
         by: c * p/y + by
         i: i + 1
     ]
-    reduce [bx by]
+    as-pair bx by
 ]
 
 bezier-tangent: function [  ; needs a better name!
@@ -181,7 +181,7 @@ bezier-tangent: function [  ; needs a better name!
 ][
     p1: bezier-n pts t
     p2: bezier-n pts t + 0.01
-    arctangent2 p2/2 - p1/2 p2/1 - p1/1
+    arctangent2 p2/y - p1/y p2/x - p1/x
 ]
 
 bezier-lengths: function [
@@ -216,7 +216,7 @@ b-search: function [
     M: half L R
     while [L < R][
         case [
-            src/:M = target [return M]
+            src/:M = target [break]
             src/:M < target [L: M + 1]
             src/:M > target [R: M - 1]
         ]
@@ -235,7 +235,6 @@ bezier-lerp: function [
     ;     This leads to uneven placement of objects along the curve !!!
     
     len: to integer! u * last seg ; the target length. We need to obtain t from it
-    ;if u >= 1.0 [return 1.0]
     either len = idx: b-search seg len [
         to float! idx / length? seg
     ][
@@ -275,7 +274,7 @@ text-along-curve: function [
     {Calculates the positions and orientatons of characters in a string
     along a curve and returns a draw block ready to be used}
     buf     [block!]  {the result}
-    src     [string!] {source, text to display}
+    txt     [string!] {source, text to display}
     offs    [block!]  {a block of starting offsets for each character}
     spacing [float!]  {multiplier for the space between the characters}
     bez     [block!]  {destination, a set of 2d points defining a Bezier curve}
@@ -284,32 +283,36 @@ text-along-curve: function [
     sz      [pair!]   {size of the bounding box of the text}
 ][
     len: last offs
-    clear buf    
+    ;prin [len sp]
+    clear head buf
     append buf [scale 0.1 0.1]
     ttt: tt: t      ; where to start 
     sz: sz * 0x1    ; we need only y
    
     d: d0: 0x0
     append/only buf collect [
-        repeat n length? src [
+        repeat n length? txt [
+        
             d: offs/:n - d0 + sz / 2
-            u: tt + (d/x / len/x * spacing)
+            u: d/x / len/x * spacing + tt
+           
             ttt: bezier-lerp u seg
-            
-            c-offs: to-pair bezier-n bez ttt
+            c-offs: bezier-n bez ttt
             angle: round/to bezier-tangent bez ttt 0.01
             
             keep compose/deep [
                 translate (c-offs - d) [
-                    rotate (angle) (d)
-                    text 0x0 (to-string src/:n) 
+                    rotate  (angle) (d)
+                    text 0x0 (to-string txt/:n)
                     ;line-width 10 pen gray 
                     ;line (d - sz) (d + sz) ; 
                 ]
             ]
+            
             tt: (to-float offs/:n/x / len/x * spacing) + t
             d0: offs/:n
             if tt > 1.0 [break]
+            
         ]
     ]
 ]
@@ -332,22 +335,19 @@ bez-segs: bezier-lengths bez-pts 500
 st-txt: 0.95
 
 draw-bl: make block! 10 * length? text1
-repeat n 2 [
-    ;clear head draw-bl
-    text-along-curve draw-bl text1 ofs 0.98 bez-pts bez-segs 0.0 txt-sz
-    print n
-]
 
-print "done"    
+repeat n 12 [
+    text-along-curve draw-bl text1 ofs 0.98 bez-pts bez-segs 0.01 txt-sz
+    ;print n
+]
 
 append bez-test [line-cap round line-width 350 fill-pen transparent scale 0.1 0.1]
 append/only bez-test collect [
     keep 'line
     repeat n lim [
-        set [bx by] bezier-n bez-pts tt
+        keep bezier-n bez-pts tt
         tt: n / lim
-        keep reduce [as-pair to integer! bx to integer! by]
-    ]
+     ]
 ]    
 
 b-time: 0.0
@@ -355,8 +355,7 @@ b-time: 0.0
 
 view [
     title "Animate"
-    ;elapsed: text "0.0"
-    base 650x350 teal rate 2
+    base 650x350 teal rate 60
     draw compose [
         ;fill-pen yello
         ;slide: translate 0x0 [line-width 1 box 200x30 250x80] 
@@ -397,13 +396,13 @@ view [
         ;tween 'fnt/color/4   0 255 4.5 0.5 tm :ease-in-sine
         ;tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-quint
         ;tween 'b-time        0 100 1.0 2.0 tm :ease-in-out-cubic
-        ;tween 'st-txt        99 1 1.0 5.0 tm :ease-in-out-sine
+        ;tween 'st-txt        99 1 1.0 2.0 tm :ease-in-out-sine
         
         ;clear find/tail face/draw 'bz2
         ;text-along-curve draw-bl text1 ofs 0.99 bez-pts bez-segs st-txt / 100.0 txt-sz
         ;save %bez-text2.txt bez-text2
         
-        change/part find/tail face/draw 'bz2 draw-bl length? draw-bl
+        ;change/part find/tail face/draw 'bz2 draw-bl length? draw-bl
         
         ;box5/4: bezier-tangent bez-pts b-time / 100.0
         ;box5/2: (0x3000 + to-pair bezier-n bez-pts b-time / 100.0) * 0.1 
