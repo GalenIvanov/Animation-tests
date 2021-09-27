@@ -7,6 +7,8 @@ Red [
 st-time: 0
 pascal: none
 
+text-data: make map! 100
+
 ;------------------------------------------------------------------------------------------------
 ; easing functions
 ; the argument must be in the range 0.0 - 1.0
@@ -162,6 +164,8 @@ bezier-n: function [
     pts [block!] {a set of pairs}
     t   [float!] {offset in the curve, from 0.0 to 1.0}
 ][
+    if t < 0.0 [return pts/1]
+    if t > 1.0 [return last pts]
     n: (length? pts) - 1
     bx: by: i: 0
     foreach p pts [
@@ -234,12 +238,14 @@ bezier-lerp: function [
     ; !!! The points around 0.0 and 1.00 are much sparsely located!
     ;     This leads to uneven placement of objects along the curve !!!
     
-    len: to integer! u * last seg ; the target length. We need to obtain t from it
-    either len = idx: b-search seg len [
+    len: to integer! u * last seg 
+    either len = seg/(idx: b-search seg len) [
+        print "Exacr match!"
         to float! idx / length? seg
     ][
+        if idx = length? seg [return 1.0]
         l1: seg/:idx
-        l2: any [seg/(idx + 1) 10 + last seg]
+        l2: seg/(idx + 1)
         seg-t: to float! len - l1 / (l2 - l1)
         to float! (idx + seg-t / length? seg)
     ]
@@ -270,49 +276,90 @@ text-box-size: function [
     size-text txt
 ]
 
-text-along-curve: function [
-    {Calculates the positions and orientatons of characters in a string
-    along a curve and returns a draw block ready to be used}
-    buf     [block!]  {the result}
-    txt     [string!] {source, text to display}
-    offs    [block!]  {a block of starting offsets for each character}
-    spacing [float!]  {multiplier for the space between the characters}
-    bez     [block!]  {destination, a set of 2d points defining a Bezier curve}
-    seg     [block!]  {a block of bezier segment lengths}
-    t       [float!]  {offset in the curve, from 0.0 to 1.0}
-    sz      [pair!]   {size of the bounding box of the text}
+text-on-curve: function [
+    id
+    t 
+    txt
+    txt-data    
+    fnt
+    crv
+    spacing 
+    /init
 ][
-    len: last offs
-    ;prin [len sp]
-    clear head buf
-    append buf [scale 0.1 0.1]
-    ttt: tt: t      ; where to start 
-    sz: sz * 0x1    ; we need only y
-   
-    d: d0: 0x0
-    append/only buf collect [
-        repeat n length? txt [
+    either init [
+        txt-ofs: char-offsets txt fnt
+        len: last txt-ofs      ; text length
+        txt-sz: 0x1 * text-box-size txt fnt  ; only the text height
+        bez-segs: bezier-lengths crv 500
         
-            d: offs/:n - d0 + sz / 2
-            u: d/x / len/x * spacing + tt
-           
-            ttt: bezier-lerp u seg
-            c-offs: bezier-n bez ttt
-            angle: round/to bezier-tangent bez ttt 0.01
-            
-            keep compose/deep [
-                translate (c-offs - d) [
-                    rotate  (angle) (d)
-                    text 0x0 (to-string txt/:n)
-                    ;line-width 10 pen gray 
-                    ;line (d - sz) (d + sz) ; 
+        put txt-data id compose/deep [
+            txt-ofs: [(txt-ofs)]
+            len: (len)       
+            txt-sz: (txt-sz) 
+            bez-segs: [(bez-segs)]
+        ]    
+        
+        draw-buf: make block! 10 * length? txt
+        append draw-buf [scale 0.1 0.1]
+        
+        t: 0.0     ; text starts at the start of the curve
+        tt: t      ; the accumulated start, will change for each character
+        
+        d: d0: 0x0
+        append/only draw-buf collect [
+            repeat n length? txt [
+                ;d: txt-ofs/:n - d0 + txt-sz / 2
+                ;u: d/x / len/x * spacing + tt
+                ;ttt: bezier-lerp u bez-segs
+                ;c-offs: bezier-n crv ttt
+                ;angle: round/to bezier-tangent crv ttt 0.01
+                
+                ;markers
+                id-t: to set-word! rejoin [id "-t-" n] ;translate
+                id-r: to set-word! rejoin [id "-r-" n] ; rotate
+                
+                keep compose/deep [
+                    (id-t) translate 10000x0 [ ;(c-offs - d) [
+                        (id-r) rotate 0 0x0 ;(angle) (d)
+                        text 0x0 (to-string txt/:n)
+                    ]
                 ]
+                
+                ;tt: (to-float txt-ofs/:n/x / len/x * spacing) + t
+                ;d0: txt-ofs/:n
             ]
+        ]
+        draw-buf
+    ][
+        tt: t        
+        d: d0: 0x0
+        
+        obj: txt-data/:id
+        txt-ofs: obj/txt-ofs
+        len: obj/len
+        txt-sz: obj/txt-sz
+        bez-segs: obj/bez-segs
+    
+        repeat n length? txt [
+            d: txt-ofs/:n - d0 + txt-sz / 2
+            u: min d/x / len/x * spacing + tt 1.0
+            ttt: min bezier-lerp u bez-segs 1.0
+            c-offs: bezier-n crv ttt
+            angle: round/to bezier-tangent crv ttt 0.01
             
-            tt: (to-float offs/:n/x / len/x * spacing) + t
-            d0: offs/:n
+            ;ttt: 0.1
+            ;c-offs: 1000x300
+            ;angle: 0
+            
+            id-t: to word! rejoin [id "-t-" n] ;translate
+            id-r: to word! rejoin [id "-r-" n] ; rotate
+            change at get id-t 2 c-offs - d
+            change at get id-r 2 angle
+            change at get id-r 3 d
+            
+            tt: (to-float txt-ofs/:n/x / len/x * spacing) + t
+            d0: txt-ofs/:n
             if tt > 1.0 [break]
-            
         ]
     ]
 ]
@@ -320,26 +367,18 @@ text-along-curve: function [
 
 ;------------------------------------------------------------------------------------------------
 
-fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
+;fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
 fnt2: make font! [name: "Verdana" size: 160 color: papaya]
 text1: "Red is a next-gen programming language, strongly inspired by REBOL"
-ofs: char-offsets text1 fnt2
-txt-sz: text-box-size text1 fnt2
-
 bez-test: make block! 200
 tt: 0.0
 lim: 100 ; fow many points to calculate in the be\ier curve
 bez-pts: [500x600 2000x4000 2800x-3000 4500x3500 6200x1500]  ; 10x for sub-pixel precision
-bez-segs: bezier-lengths bez-pts 500
 
-st-txt: 0.95
+st-txt: 0.99 ; for animating text-on-curve
 
 draw-bl: make block! 10 * length? text1
-
-repeat n 12 [
-    text-along-curve draw-bl text1 ofs 0.98 bez-pts bez-segs 0.01 txt-sz
-    ;print n
-]
+draw-bl: text-on-curve/init 'text1 1.0 text1 text-data fnt2 bez-pts 0.98
 
 append bez-test [line-cap round line-width 350 fill-pen transparent scale 0.1 0.1]
 append/only bez-test collect [
@@ -350,62 +389,24 @@ append/only bez-test collect [
      ]
 ]    
 
-b-time: 0.0
-
-
 view [
     title "Animate"
-    base 650x350 teal rate 60
+    ;button "Apply" [
+    ;    st-txt: st-txt - 0.01
+    ;    text-on-curve 'text1 st-txt text1 text-data fnt2 bez-pts 0.98
+    ;]
+    bb: base 650x350 teal rate 30
     draw compose [
-        ;fill-pen yello
-        ;slide: translate 0x0 [line-width 1 box 200x30 250x80] 
-        ;font fnt
-        ;txt: text 220x30 "Alpha test"
-        ;fill-pen sky bx1: box 50x150 80x180
-        ;bx2: box 50x200 80x230
-        ;bx3: box 50x250 80x280
-        ;bx4: box 50x300 80x330
         pen yello
-        ;line-width 30 
-        ;bz: (bez-test)
         font fnt2
-        
-        ;line-width 10
-        ;box 1000x200 1500x400
-        ;translate 1000x200 [
-        ;    rotate 45 250x100
-        ;    box 0x0 500x200
-        ;]    
-       
-        ;text 0x0 (text1)
         translate 0x50
         (bez-test)
         bz2: (draw-bl)
-        ;box5: translate 0x0 rotate 0 box -25x-15 25x15
-        
     ]
     on-time [
         tm: to float! difference now/precise st-time
-        ;elapsed/data: round/to tm 0.01
-        ;tween 'slide/2/x   000 200 2.0 4.0 tm :ease-in-out-elastic
-        ;tween 'bx1/3/x      80 600 1.0 2.0 tm :ease-in-out-quad
-        ;tween 'bx2/3/x      80 600 1.0 2.0 tm :ease-in-out-cubic
-        ;tween 'bx3/3/x      80 600 1.0 2.0 tm :ease-in-out-quart
-        ;tween 'bx4/3/x      80 600 1.0 2.0 tm :ease-in-out-quint
-        ;tween 'fnt/color/4 255   0 2.0 1.0 tm :ease-in-sine
-        ;tween 'fnt/color/4   0 255 4.5 0.5 tm :ease-in-sine
-        ;tween 'txt/2/x     220 700 4.0 1.0 tm :ease-in-quint
-        ;tween 'b-time        0 100 1.0 2.0 tm :ease-in-out-cubic
-        ;tween 'st-txt        99 1 1.0 2.0 tm :ease-in-out-sine
-        
-        ;clear find/tail face/draw 'bz2
-        ;text-along-curve draw-bl text1 ofs 0.99 bez-pts bez-segs st-txt / 100.0 txt-sz
-        ;save %bez-text2.txt bez-text2
-        
-        ;change/part find/tail face/draw 'bz2 draw-bl length? draw-bl
-        
-        ;box5/4: bezier-tangent bez-pts b-time / 100.0
-        ;box5/2: (0x3000 + to-pair bezier-n bez-pts b-time / 100.0) * 0.1 
+        tween 'st-txt 100 1 0.0 5.0 tm :ease-linear
+        text-on-curve 'text1 st-txt / 100.0 text1 text-data fnt2 bez-pts 0.98
     ]
     on-create [print "start" st-time: now/precise]
 ]
