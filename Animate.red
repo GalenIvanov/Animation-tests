@@ -259,7 +259,8 @@ char-offsets: function [
 ][
     new-src: head append copy src "M"  ; to find the last offset
     size: as-pair fnt/size * length? new-src fnt/size
-    txt: make face! compose [size: (size) type: 'rich-text text: (new-src)]
+    ; as a general rule, never use make face!, only make-face
+    txt: make make-face 'rich-text compose [size: (size) text: (new-src)]
     txt/font: copy fnt
     next collect [repeat n length? new-src [keep (caret-to-offset txt n)]]
 ]
@@ -395,7 +396,7 @@ view [
     ;    st-txt: st-txt - 0.01
     ;    text-on-curve 'text1 st-txt text1 text-data fnt2 bez-pts 0.98
     ;]
-    bb: base 650x350 teal rate 30
+    bb: base 650x350 teal rate 120
     draw compose [
         pen yello
         font fnt2
@@ -405,7 +406,7 @@ view [
     ]
     on-time [
         tm: to float! difference now/precise st-time
-        tween 'st-txt 100 1 0.0 5.0 tm :ease-linear
+        tween 'st-txt 100 0 0.0 2.0 tm :ease-in-out-cubic
         text-on-curve 'text1 st-txt / 100.0 text1 text-data fnt2 bez-pts 0.98
     ]
     on-create [print "start" st-time: now/precise]
