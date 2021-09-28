@@ -250,6 +250,9 @@ bezier-lerp: function [
     ]
 ]
 
+;------------------------------------------------------------------------------------------------
+; Text-repated functions
+;------------------------------------------------------------------------------------------------
 char-offsets: function [
     {Calculates the offsets of the characters
     in a text for a given font settings}
@@ -261,7 +264,7 @@ char-offsets: function [
     ; as a general rule, never use make face!, only make-face
     txt: make make-face 'rich-text compose [size: (size) text: (new-src)]
     txt/font: copy fnt
-    next collect [repeat n length? new-src [keep (caret-to-offset txt n)]]
+    next collect [repeat n length? new-src [keep caret-to-offset txt n]]
 ]
 
 text-box-size: function [
@@ -270,10 +273,34 @@ text-box-size: function [
     src [string!]
     fnt [object!]
 ][
-    size: as-pair fnt/size * length? src fnt/size
+    size: as-pair fnt/size * length? src fnt/size  ; * number of lines?
     txt: make face! compose [size: (size)  type: 'text text: (src)]
     txt/font: copy fnt
     size-text txt
+]
+
+split-text: function [
+    {Splits src on characters, words (on spaces and newlines) 
+    or lines (on newlines) and returns a block of blocks,  
+    each consisting of a position and a substring}
+    src  [string!]   {Text to split}
+    fnt  [object!]   {Font to use for measurements}
+    mode [any-word!] {'chars 'words or 'lines}
+][
+    size: as-pair fnt/size * length? src fnt/size
+    txt: make make-face 'rich-text compose [size: (size) text: (src)]
+    txt/font: copy fnt
+    rule: select [chars [skip] words [space | newline] lines [newline]] mode
+    
+    collect [
+        parse src [
+            any [
+                 p: copy t thru [rule | end]
+                (keep/only reduce [caret-to-offset txt index? p t])
+              | skip
+            ]
+        ]
+    ]
 ]
 
 text-on-curve: function [
@@ -333,6 +360,7 @@ text-on-curve: function [
             u: d/x / len/x * spacing + tt
             ttt: bezier-lerp u bez-segs
             if ttt > 0.999 [break]
+            
             c-offs: bezier-n crv ttt
             angle: round/to bezier-tangent crv ttt 0.01
            
@@ -349,12 +377,14 @@ text-on-curve: function [
     ]
 ]
 
+;------------------------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------------------------
 
 ;fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
 fnt2: make font! [name: "Verdana" size: 170 color: black]
 text1: "Red is a next-gen programming language, strongly inspired by REBOL"
+text2: "Red is a next-gen^/programming language,^/strongly inspired by REBOL"
 bez-test: make block! 200
 tt: 0.0
 lim: 100 ; fow many points to calculate in the be\ier curve
@@ -375,21 +405,39 @@ append/only bez-test collect [
      ]
 ]    
 
+; test split-text
+marks: collect [
+    keep [pen white line-width 5]
+    foreach t-info split-text text2 fnt2 'chars [
+        ofs: t-info/1
+        str: t-info/2
+        keep compose [line (ofs) (ofs + 0x270) text (ofs) (str)]
+    ]
+]    
+
 view [
     title "Animate"
     bb: base 650x350 black rate 120
-    draw compose [
-        pen1: pen 80.108.142.255
+    draw compose/deep [
         font fnt2
+        fill-pen aqua
+        scale 0.2 0.2 [
+            box 0x0 5000x4000
+            translate 0x300
+            (marks)
+        ]    
+        
+        pen1: pen 80.108.142.255
         translate 0x50
         (bez-test)
         bz2: (draw-bl)
+        
     ]
     on-time [
         tm: to float! difference now/precise st-time
-        tween 'pen1/2/4 255 0 1.1 2.0   tm :ease-in-out-cubic
-        tween 'st-txt 1000 0 1.5 6.0 tm :ease-in-out-quint
-        text-on-curve 'text1 st-txt / 1000.0 text1 text-data fnt2 bez-pts 0.98
+        tween 'pen1/2/4 255 0 1.1 2.0 tm :ease-in-out-cubic
+        tween 'st-txt  1000 0 1.5 6.0 tm :ease-in-out-quint
+        text-on-curve 'text1 st-txt / 1000.0 text1 text-data fnt2 bez-pts 0.98 ; shouldn't be called all the time
     ]
     on-create [print "start" st-time: now/precise]
 ]
