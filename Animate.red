@@ -240,7 +240,6 @@ bezier-lerp: function [
     
     len: to integer! u * last seg 
     either len = seg/(idx: b-search seg len) [
-        print "Exacr match!"
         to float! idx / length? seg
     ][
         if idx = length? seg [return 1.0]
@@ -302,32 +301,20 @@ text-on-curve: function [
         
         draw-buf: make block! 10 * length? txt
         append draw-buf [scale 0.1 0.1]
-        
-        t: 0.0     ; text starts at the start of the curve
-        tt: t      ; the accumulated start, will change for each character
-        
-        d: d0: 0x0
+
         append/only draw-buf collect [
             repeat n length? txt [
-                ;d: txt-ofs/:n - d0 + txt-sz / 2
-                ;u: d/x / len/x * spacing + tt
-                ;ttt: bezier-lerp u bez-segs
-                ;c-offs: bezier-n crv ttt
-                ;angle: round/to bezier-tangent crv ttt 0.01
-                
                 ;markers
                 id-t: to set-word! rejoin [id "-t-" n] ;translate
                 id-r: to set-word! rejoin [id "-r-" n] ; rotate
                 
                 keep compose/deep [
-                    (id-t) translate 10000x0 [ ;(c-offs - d) [
-                        (id-r) rotate 0 0x0 ;(angle) (d)
+                    (id-t) translate 10000x0 [
+                        (id-r) rotate 0 0x0
                         text 0x0 (to-string txt/:n)
                     ]
                 ]
-                
-                ;tt: (to-float txt-ofs/:n/x / len/x * spacing) + t
-                ;d0: txt-ofs/:n
+
             ]
         ]
         draw-buf
@@ -343,15 +330,12 @@ text-on-curve: function [
     
         repeat n length? txt [
             d: txt-ofs/:n - d0 + txt-sz / 2
-            u: min d/x / len/x * spacing + tt 1.0
-            ttt: min bezier-lerp u bez-segs 1.0
+            u: d/x / len/x * spacing + tt
+            ttt: bezier-lerp u bez-segs
+            if ttt > 0.999 [break]
             c-offs: bezier-n crv ttt
             angle: round/to bezier-tangent crv ttt 0.01
-            
-            ;ttt: 0.1
-            ;c-offs: 1000x300
-            ;angle: 0
-            
+           
             id-t: to word! rejoin [id "-t-" n] ;translate
             id-r: to word! rejoin [id "-r-" n] ; rotate
             change at get id-t 2 c-offs - d
@@ -360,7 +344,7 @@ text-on-curve: function [
             
             tt: (to-float txt-ofs/:n/x / len/x * spacing) + t
             d0: txt-ofs/:n
-            if tt > 1.0 [break]
+            ;if tt > 0.99 [break]
         ]
     ]
 ]
@@ -369,14 +353,15 @@ text-on-curve: function [
 ;------------------------------------------------------------------------------------------------
 
 ;fnt: make font! [name: "Verdana" size: 30 color: 255.255.255.255]
-fnt2: make font! [name: "Verdana" size: 160 color: papaya]
+fnt2: make font! [name: "Verdana" size: 170 color: black]
 text1: "Red is a next-gen programming language, strongly inspired by REBOL"
 bez-test: make block! 200
 tt: 0.0
 lim: 100 ; fow many points to calculate in the be\ier curve
-bez-pts: [500x600 2000x4000 2800x-3000 4500x3500 6200x1500]  ; 10x for sub-pixel precision
+bez-pts: [500x400 3700x-1200 3500x1000 2500x4000 6200x2000]  ; 10x for sub-pixel precision
+;bez-pts: [500x600 2000x4000 2800x-3000 4500x3500 6200x1500]  ; 10x for sub-pixel precision
 
-st-txt: 0.99 ; for animating text-on-curve
+st-txt: 1000 ; for animating text-on-curve
 
 draw-bl: make block! 10 * length? text1
 draw-bl: text-on-curve/init 'text1 1.0 text1 text-data fnt2 bez-pts 0.98
@@ -392,13 +377,9 @@ append/only bez-test collect [
 
 view [
     title "Animate"
-    ;button "Apply" [
-    ;    st-txt: st-txt - 0.01
-    ;    text-on-curve 'text1 st-txt text1 text-data fnt2 bez-pts 0.98
-    ;]
-    bb: base 650x350 teal rate 120
+    bb: base 650x350 black rate 120
     draw compose [
-        pen yello
+        pen1: pen 80.108.142.255
         font fnt2
         translate 0x50
         (bez-test)
@@ -406,8 +387,9 @@ view [
     ]
     on-time [
         tm: to float! difference now/precise st-time
-        tween 'st-txt 100 0 0.0 2.0 tm :ease-in-out-cubic
-        text-on-curve 'text1 st-txt / 100.0 text1 text-data fnt2 bez-pts 0.98
+        tween 'pen1/2/4 255 0 1.1 2.0   tm :ease-in-out-cubic
+        tween 'st-txt 1000 0 1.5 6.0 tm :ease-in-out-quint
+        text-on-curve 'text1 st-txt / 1000.0 text1 text-data fnt2 bez-pts 0.98
     ]
     on-create [print "start" st-time: now/precise]
 ]
