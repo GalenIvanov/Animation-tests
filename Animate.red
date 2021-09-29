@@ -251,7 +251,7 @@ bezier-lerp: function [
 ]
 
 ;------------------------------------------------------------------------------------------------
-; Text-repated functions
+; Text-related functions
 ;------------------------------------------------------------------------------------------------
 char-offsets: function [
     {Calculates the offsets of the characters
@@ -285,7 +285,7 @@ split-text: function [
     each consisting of a position and a substring}
     src  [string!]   {Text to split}
     fnt  [object!]   {Font to use for measurements}
-    mode [any-word!] {'chars 'words or 'lines}
+    mode [any-word!] {chars, words or lines}
 ][
     size: as-pair fnt/size * length? src fnt/size
     txt: make make-face 'rich-text compose [size: (size) text: (src)]
@@ -295,7 +295,7 @@ split-text: function [
     collect [
         parse src [
             any [
-                 p: copy t thru [rule | end]
+                p: copy t thru [rule | end] 
                 (keep/only reduce [caret-to-offset txt index? p t])
               | skip
             ]
@@ -303,15 +303,34 @@ split-text: function [
     ]
 ]
 
-text-on-curve: function [
-    id
-    t 
-    txt
-    txt-data    
-    fnt
-    crv
-    spacing 
-    /init
+fade-in-text: function [
+    {Animates the text so that each element (character, word or line)
+    fades-in from transparent to the chosen font color}
+    id         [any-word!] {identifier for the effect}
+    start      [float!]    {start time of the animation}
+    dur        [float!]    {duration of the animation}
+    /init 
+        txt    [string!]   {text to be animated}
+        fnt    [object!]   {font to use}
+        mode   [any-word!] {chars, words or lines} 
+        pos    [pair!]       {were to place the text}
+        sp-x   [number!]   {scale factor for the offset in horizontal direction}
+        sp-y   [number!]   {scale factor for the offset in vertical direction}
+        delay  [number!]   {how much is delayed the animaiton for each element}
+][
+    
+]
+
+text-along-curve: function [
+    {Flow a text along Bezier curve}
+    id       [word!]   {effect identificator}
+    t        [number!] {point on the curve} 
+    /init          
+        txt  [string!] {text to be displayed}  
+        fnt  [object!] {font to use}
+        crv  [block!]  {point of the Bezier curve}  
+        spacing [number!] {multiplier for the space between the characters}
+    /extern text-data   {the map of id's and objects}  
 ][
     either init [
         txt-ofs: char-offsets txt fnt
@@ -319,11 +338,13 @@ text-on-curve: function [
         txt-sz: 0x1 * text-box-size txt fnt  ; only the text height
         bez-segs: bezier-lengths crv 500
         
-        put txt-data id compose/deep [
+        put text-data id compose/deep [
             txt-ofs: [(txt-ofs)]
             len: (len)       
-            txt-sz: (txt-sz) 
+            txt-sz: (txt-sz)
+            crv: [(crv)]            
             bez-segs: [(bez-segs)]
+            spacing: (spacing)
         ]    
         
         draw-buf: make block! 10 * length? txt
@@ -331,17 +352,14 @@ text-on-curve: function [
 
         append/only draw-buf collect [
             repeat n length? txt [
-                ;markers
                 id-t: to set-word! rejoin [id "-t-" n] ;translate
                 id-r: to set-word! rejoin [id "-r-" n] ; rotate
-                
                 keep compose/deep [
                     (id-t) translate 10000x0 [
                         (id-r) rotate 0 0x0
                         text 0x0 (to-string txt/:n)
                     ]
                 ]
-
             ]
         ]
         draw-buf
@@ -349,13 +367,16 @@ text-on-curve: function [
         tt: t        
         d: d0: 0x0
         
-        obj: txt-data/:id
+        obj: text-data/:id
+        
         txt-ofs: obj/txt-ofs
         len: obj/len
         txt-sz: obj/txt-sz
+        crv: obj/crv
         bez-segs: obj/bez-segs
-    
-        repeat n length? txt [
+        spacing: obj/spacing
+        
+        repeat n length? txt-ofs [
             d: txt-ofs/:n - d0 + txt-sz / 2
             u: d/x / len/x * spacing + tt
             ttt: bezier-lerp u bez-segs
@@ -391,10 +412,10 @@ lim: 100 ; fow many points to calculate in the be\ier curve
 bez-pts: [500x400 3700x-1200 3500x1000 2500x4000 6200x2000]  ; 10x for sub-pixel precision
 ;bez-pts: [500x600 2000x4000 2800x-3000 4500x3500 6200x1500]  ; 10x for sub-pixel precision
 
-st-txt: 1000 ; for animating text-on-curve
+st-txt: 1000 ; for animating text-along-curve
 
 draw-bl: make block! 10 * length? text1
-draw-bl: text-on-curve/init 'text1 1.0 text1 text-data fnt2 bez-pts 0.98
+draw-bl: text-along-curve/init 'text1 1.0 text1 fnt2 bez-pts 0.98
 
 append bez-test [line-cap round line-width 350 fill-pen transparent scale 0.1 0.1]
 append/only bez-test collect [
@@ -437,7 +458,7 @@ view [
         tm: to float! difference now/precise st-time
         tween 'pen1/2/4 255 0 1.1 2.0 tm :ease-in-out-cubic
         tween 'st-txt  1000 0 1.5 6.0 tm :ease-in-out-quint
-        text-on-curve 'text1 st-txt / 1000.0 text1 text-data fnt2 bez-pts 0.98 ; shouldn't be called all the time
+        text-along-curve 'text1 st-txt / 1000.0
     ]
     on-create [print "start" st-time: now/precise]
 ]
