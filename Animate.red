@@ -258,12 +258,28 @@ char-offsets: function [
     src [string!]
     fnt [object!]
 ][
-    new-src: head append copy src "M"  ; to find the last offset
+    new-src: head append copy src "|"  ; to find the last offset
     size: as-pair fnt/size * length? new-src fnt/size
     ; as a general rule, never use make face!, only make-face
     txt: make make-face 'rich-text compose [size: (size) text: (new-src)]
     txt/font: copy fnt
     next collect [repeat n length? new-src [keep caret-to-offset txt n]]
+]
+
+char-box-sizes: function [
+   {Calculates the size of the bounding box of each character
+   in the text for a given font settings}
+    src [string!]
+    fnt [object!]
+][
+    size: as-pair fnt/size * length? src fnt/size
+    collect [
+        foreach c src [
+            txt: make make-face 'rich-text compose [size: (size) text: (to string! c)]
+            txt/font: copy fnt
+            keep size-text txt
+        ]
+    ]
 ]
 
 text-box-size: function [
@@ -278,6 +294,9 @@ text-box-size: function [
     size-text txt
 ]
 
+; Isn't it better to append a character and use it to 
+; calculate the widths?
+; Chunks will consist of text, start posiiton and size
 split-text: function [
     {Splits src on characters, words (on spaces and newlines) 
     or lines (on newlines) and returns a block of blocks,  
@@ -328,19 +347,20 @@ fade-in-text: function [
             insert chunks/1 fnt-name
             n: n + 1        
         ]
-        put text-data id compose/deep [
-            chunks: [(chunks)]
-            fnt: (fnt)
-            pos: (pos)
-        ]
+        
+        put text-data id compose/deep [chunks: [(chunks)]]
+        
         collect [
             foreach item chunks [
                 fnt-name: to-word rejoin [item/1 "_"]
                 set fnt-name copy fnt
                 fnt-id: to set-word! item/1
+                posx: item/2/x * sp-x 
+                posy: item/2/y * sp-y
+                p: as-pair posx posy
                 keep compose [
                     (fnt-id) font (get fnt-name)
-                    text (pos + item/2) (item/3)
+                    text (pos + p) (item/3)
                 ]
             ]
         ]    
@@ -351,6 +371,38 @@ fade-in-text: function [
         ]
     ]
 ]
+
+; Here
+scale-text: function [
+    {Animate the text so that each component scales up
+    from zero to its actual size, centered about itself}
+    id         [any-word!] {identifier for the effect}
+    t          [float!]    {current time}
+    /init
+        txt    [string!]   {text to animate}
+        fnt    [object!]   {font to use}
+        mode   [any-word!] {chars, words or lines} 
+        pos    [pair!]     {were to place the text}
+        sp-x   [number!]   {scale factor for the offset in horizontal direction}
+        sp-y   [number!]   {scale factor for the offset in vertical direction}
+        start  [float!]    {start time of the animation}
+        dur    [float!]    {duration of the animation}
+        delay  [number!]   {how much is delayed the animaiton for each element}
+][
+    either init [   ; initialize
+        chunks: split-text txt fnt mode
+        n: 1
+        forall chunks [
+            st: delay * n + start 
+            append chunks/1 reduce [st dur]
+            n: n + 1        
+        ]
+        
+        put text-data id compose/deep [chunks: [(chunks)]]
+    ][
+    ]    
+]
+
 
 text-along-curve: function [
     {Flow a text along Bezier curve}
@@ -461,8 +513,6 @@ fade-bl4: fade-in-text/init 'fade-txt4 0.0 "Lines" fnt3 'words 380x2200 1.0 1.0 
 fade-bl5: fade-in-text/init 'fade-txt5 0.0 "Words" fnt3 'words 1500x2200 1.0 1.0 4.5 2.0 0.1
 fade-bl6: fade-in-text/init 'fade-txt6 0.0 "Chars" fnt3 'words 2800x2200 1.0 1.0 10.5 2.0 0.1
 
-
-
 append bez-test [line-cap round line-width 350 fill-pen transparent scale 0.1 0.1]
 append/only bez-test collect [
     keep 'line
@@ -471,6 +521,8 @@ append/only bez-test collect [
         tt: n / lim
      ]
 ]    
+
+;probe char-box-sizes text2 fnt1
 
 view [
     title "Animate"
