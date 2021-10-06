@@ -9,6 +9,8 @@ pascal: none
 
 text-data: make map! 100
 
+random/seed now
+
 ;------------------------------------------------------------------------------------------------
 ; easing functions
 ; the argument must be in the range 0.0 - 1.0
@@ -127,9 +129,13 @@ tween: func [
     t        [float!]      {Current time}
     ease     [function!]   {Easing function}
 ][
+   ;I need to add support for pairs and tuples
     if all [t >= start t < (start + duration)][
-        ; not only integer! - should be a parameter!
-        set target to integer! (ease t - start / duration) * (value2 - value1) + value1 
+        either integer? value1 [ 
+            set target to integer! (ease t - start / duration) * (value2 - value1) + value1 
+        ][
+            set target (ease t - start / duration) * (value2 - value1) + value1 
+        ]        
     ]
 ]
 
@@ -266,6 +272,7 @@ char-offsets: function [
     next collect [repeat n length? new-src [keep caret-to-offset txt n]]
 ]
 
+; unnecessary !!!
 char-box-sizes: function [
    {Calculates the size of the bounding box of each character
    in the text for a given font settings}
@@ -288,7 +295,7 @@ text-box-size: function [
     src [string!]
     fnt [object!]
 ][
-    size: as-pair fnt/size * length? src fnt/size  ; * number of lines?
+    size: as-pair fnt/size * length? src fnt/size
     txt: make face! compose [size: (size)  type: 'text text: (src)]
     txt/font: copy fnt
     size-text txt
@@ -300,7 +307,7 @@ text-box-size: function [
 split-text: function [
     {Splits src on characters, words (on spaces and newlines) 
     or lines (on newlines) and returns a block of blocks,  
-    each consisting of a position and a substring}
+    each consisting of position, size and substring}
     src  [string!]   {Text to split}
     fnt  [object!]   {Font to use for measurements}
     mode [any-word!] {chars, words or lines}
@@ -308,13 +315,19 @@ split-text: function [
     size: as-pair fnt/size * length? src fnt/size
     txt: make make-face 'rich-text compose [size: (size) text: (src)]
     txt/font: copy fnt
+    txt1: make face! compose [size: (size)  type: 'text text: (src)]
+    txt1/font: copy fnt
     rule: select [chars [skip] words [space | newline] lines [newline]] mode
     
     collect [
         parse src [
             any [
                 p: copy t thru [rule | end] 
-                (keep/only reduce [caret-to-offset txt index? p t])
+                (keep/only reduce [
+                    caret-to-offset txt index? p  ; offset
+                    size-text/with txt1 t         ; size 
+                    t                             ; text
+                ])
               | skip
             ]
         ]
@@ -336,16 +349,23 @@ fade-in-text: function [
         start  [float!]    {start time of the animation}
         dur    [float!]    {duration of the animation}
         delay  [number!]   {how much is delayed the animaiton for each element}
+    /rand    
 ][
     either init [   ; initialize
         chunks: split-text txt fnt mode
-        n: 1
-        forall chunks [
+        starts: collect [
+            st: start
+            repeat n length? chunks [
+                keep st
+                st: st + delay
+            ]
+        ]
+        if rand [random starts]
+        
+        repeat n length? chunks [
             fnt-name: rejoin [id "-fnt-" n]
-            st: delay * n + start 
-            append chunks/1 reduce [st dur]
-            insert chunks/1 fnt-name
-            n: n + 1        
+            insert chunks/:n fnt-name
+            append chunks/:n reduce [starts/:n dur]
         ]
         
         put text-data id compose/deep [chunks: [(chunks)]]
@@ -360,14 +380,14 @@ fade-in-text: function [
                 p: as-pair posx posy
                 keep compose [
                     (fnt-id) font (get fnt-name)
-                    text (pos + p) (item/3)
+                    text (pos + p) (item/4)
                 ]
             ]
         ]    
     ][  ; animate
         foreach item text-data/:id/chunks [
             fnt-id: get to word! rejoin [item/1 "_"]
-            tween 'fnt-id/color/4 255 0 item/4 item/5 t :ease-in-out-quart
+            tween 'fnt-id/color/4 255 0 item/5 item/6 t :ease-in-out-quart
         ]
     ]
 ]
@@ -378,28 +398,106 @@ scale-text: function [
     from zero to its actual size, centered about itself}
     id         [any-word!] {identifier for the effect}
     t          [float!]    {current time}
+    from       [any-word!] {direction to scale from}        
     /init
         txt    [string!]   {text to animate}
         fnt    [object!]   {font to use}
-        mode   [any-word!] {chars, words or lines} 
+        mode   [any-word!] {chars, words or lines}
         pos    [pair!]     {were to place the text}
         sp-x   [number!]   {scale factor for the offset in horizontal direction}
         sp-y   [number!]   {scale factor for the offset in vertical direction}
         start  [float!]    {start time of the animation}
         dur    [float!]    {duration of the animation}
         delay  [number!]   {how much is delayed the animaiton for each element}
+    /rand    
 ][
     either init [   ; initialize
         chunks: split-text txt fnt mode
-        n: 1
-        forall chunks [
-            st: delay * n + start 
-            append chunks/1 reduce [st dur]
-            n: n + 1        
+        starts: collect [
+            st: start
+            repeat n length? chunks [
+                keep st
+                st: st + delay
+            ]
         ]
+        if rand [random starts]
         
+        repeat n length? chunks [
+            append chunks/:n reduce [starts/:n dur]
+            name: to-set-word rejoin [id "_" n]
+            insert chunks/:n name
+        ]
         put text-data id compose/deep [chunks: [(chunks)]]
-    ][
+        
+        collect [
+            n: 0
+            foreach item chunks [
+                posx: item/2/x * sp-x 
+                posy: item/2/y * sp-y
+                p: as-pair posx posy
+                keep compose/deep [
+                    (item/1)
+                    translate 0x0 [
+                        scale 0.0 0.0
+                        text 0x0 (item/4)      
+                    ]    
+                ]
+            ]
+        ]    
+    ][  ; animate
+        sc-p: select [
+            top-left:     0x0
+            top:          0x0
+            top-right:    2x0
+            left:         0x0
+            center:       1x1
+            right:        2x0
+            bottom-left:  0x2
+            bottom:       0x2
+            bottom-right: 2x2
+        ] from
+        
+        sc-x: select [
+            top-left:     0.0
+            top:          1.0
+            top-right:    0.0
+            left:         0.0
+            center:       0.0
+            right:        0.0
+            bottom-left:  0.0
+            bottom:       1.0
+            bottom-right: 0.0
+        ] from
+        
+        sc-y: select [
+            top-left:     0.0
+            top:          0.0
+            top-right:    0.0
+            left:         1.0
+            center:       0.0
+            right:        1.0
+            bottom-left:  0.0
+            bottom:       0.0
+            bottom-right: 0.0
+        ] from
+        
+        
+        foreach item text-data/:id/chunks [
+            name: get item/1
+            ; pos, sp-x and sp-y must be read from the map!
+            posx: item/2/x ;* sp-x 
+            posy: item/2/y ;* sp-y
+            p: as-pair posx posy
+            d: item/3 / 2
+            pos: 100x100
+            tr1: pos + p + (d * sc-p)
+            tr2: pos + p
+            ; I need to facilitate tweening of pairs!
+            tween 'name/2/x tr1/x tr2/x item/5 item/6 t :ease-in-out-elastic
+            tween 'name/2/y tr1/y tr2/y item/5 item/6 t :ease-in-out-elastic
+            tween 'name/3/2   sc-x   1.0 item/5 item/6 t :ease-in-out-elastic
+            tween 'name/3/3   sc-y   1.0 item/5 item/6 t :ease-in-out-elastic
+        ]
     ]    
 ]
 
@@ -477,101 +575,5 @@ text-along-curve: function [
     ]
 ]
 
-;------------------------------------------------------------------------------------------------
 
-;------------------------------------------------------------------------------------------------
-
-fnt1: make font! [name: "Verdana" size: 100 color: 255.255.255.255]
-fnt2: make font! [name: "Verdana" size: 170 color: 0.0.0.0]
-fnt3: make font! [name: "Verdana" size: 120 style: 'bold color: 255.155.55.255]
-text1: "Red is a next-gen programming language, strongly inspired by REBOL"
-text2: {Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-In elementum orci neque, eu tincidunt nisl finibus sit amet.
-Ut consectetur pellentesque consectetur.}
-text3: {Donec non vulputate nisi. Pellentesque sodales ut justo
-at commodo. Aliquam rutrum dui in turpis lobortis luctus.
-Phasellus ultricies ipsum eu dui bibendum finibus.}
-text4: {In urna libero, ultrices sed rhoncus ut, consequat et magna.
-Sed a tortor a ex sodales pretium. Nulla bibendum nec quam
-a sollicitudin. Vivamus vulputate erat odio, in consectetur
-sapien tempor id.}
-
-bez-test: make block! 200
-tt: 0.0
-lim: 100 ; fow many points to calculate in the be\ier curve
-bez-pts: [500x400 3700x-1200 3500x1000 2500x4000 6200x2000]  ; 10x for sub-pixel precision
-
-st-txt: 10000 ; for animating text-along-curve
-
-draw-bl: make block! 10 * length? text1
-draw-bl: text-along-curve/init 'text1 1.0 text1 fnt2 bez-pts 0.98
-fade-bl1: fade-in-text/init 'fade-txt1 0.0 text2 fnt1 'lines 100x100 1.0 1.0 1.0 1.0 1.0
-fade-bl2: fade-in-text/init 'fade-txt2 0.0 text3 fnt1 'words 100x700 1.0 1.0 5.0 0.5 0.2
-fade-bl3: fade-in-text/init 'fade-txt3 0.0 text4 fnt1 'chars 100x1300 1.0 1.0 11.0 0.5 0.01
-
-fade-bl4: fade-in-text/init 'fade-txt4 0.0 "Lines" fnt3 'words 380x2200 1.0 1.0 0.5 2.0 0.1
-fade-bl5: fade-in-text/init 'fade-txt5 0.0 "Words" fnt3 'words 1500x2200 1.0 1.0 4.5 2.0 0.1
-fade-bl6: fade-in-text/init 'fade-txt6 0.0 "Chars" fnt3 'words 2800x2200 1.0 1.0 10.5 2.0 0.1
-
-append bez-test [line-cap round line-width 350 fill-pen transparent scale 0.1 0.1]
-append/only bez-test collect [
-    keep 'line
-    repeat n lim [
-        keep bezier-n bez-pts tt
-        tt: n / lim
-     ]
-]    
-
-;probe char-box-sizes text2 fnt1
-
-view [
-    title "Animate"
-    bb: base 650x400 teal rate 120
-    draw compose/deep [
-        font fnt1
-        fill-pen aqua
-        pen yello
-        scale 0.15 0.15 [
-            box 0x0 5000x4000
-            ;translate 0x300
-            (fade-bl1)
-            (fade-bl2)
-            (fade-bl3)
-            line-width 250
-            line-cap round
-            ln1: line 250x3300 950x3300
-            (fade-bl4)
-            (fade-bl5)
-            (fade-bl6)
-        ]
-        font fnt2
-        pen1: pen 80.108.142.255
-        translate 1000x50
-        ;(bez-test)
-        bz2: (draw-bl)
-        
-    ]
-    on-time [
-        tm: to float! difference now/precise st-time
-        tween 'pen1/2/4 255 0 1.1 2.0 tm :ease-in-out-cubic
-        tween 'st-txt  10000 0 1.5 6.0 tm :ease-in-out-quint
-        text-along-curve 'text1 st-txt / 10000.0
-        fade-in-text 'fade-txt1 tm
-        fade-in-text 'fade-txt2 tm
-        fade-in-text 'fade-txt3 tm
-        fade-in-text 'fade-txt4 tm
-        fade-in-text 'fade-txt5 tm
-        fade-in-text 'fade-txt6 tm
-        
-        tween 'ln1/2/y 3300 2300 0.5 2.0 tm :ease-in-out-elastic
-        tween 'ln1/3/y 3300 2300 0.5 2.0 tm :ease-in-out-elastic
-                
-        tween 'ln1/2/x 250 1450 4.0 2.0 tm :ease-in-out-elastic
-        tween 'ln1/3/x 950 2200 4.0 2.0 tm :ease-in-out-elastic
-        
-        tween 'ln1/2/x 1450 2750 10.0 2.0 tm :ease-in-out-elastic
-        tween 'ln1/3/x 2200 3350 10.0 2.0 tm :ease-in-out-elastic
-        
-    ]
-    on-create [print "start" st-time: now/precise]
-]
+; tests were moved to separate files
