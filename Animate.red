@@ -12,15 +12,15 @@ random/seed now
 
 text-effect: make object! [
     text: ""        ; text to render   
-	font: none      ; font to use
-	mode: 'chars    ; how to split the text  
-	from: 'center   ; origin of scaling
-	posXY: 0x0      ; where to place the text  
-	sp-x:  1.0      ; spacing factor for X direction
-	sp-y:  1.0      ; spacing factor for Y direction
+    font: none      ; font to use
+    mode: 'chars    ; how to split the text  
+    from: 'center   ; origin of scaling
+    posXY: 0x0      ; where to place the text  
+    sp-x:  1.0      ; spacing factor for X direction
+    sp-y:  1.0      ; spacing factor for Y direction
     start: 1.0      ; start time
     dur:   1.0      ; duration 
-    delay: 0.1	    ; delay between subanimations
+    delay: 0.1        ; delay between subanimations
 ]
 
 ;------------------------------------------------------------------------------------------------
@@ -332,11 +332,11 @@ fade-in-text: function [
     id         [any-word!] {identifier for the effect}
     t          [float!]    {current time}
     /init
-	    t-spec [block!]    {specification of the text effect}
+        t-spec [block!]    {specification of the text effect}
     /rand    
 ][
     either init [   ; initialize
-        t-obj: make text-effect	t-spec
+        t-obj: make text-effect    t-spec
         chunks: split-text t-obj/text t-obj/font t-obj/mode
         starts: collect [
             st: t-obj/start
@@ -372,8 +372,8 @@ fade-in-text: function [
     ][  ; animate
         foreach item text-data/:id/chunks [
             fnt-id: get to word! rejoin [item/1 "_"]
-			name: get to word! item/1
-			name/4: name/4  ; refresh
+            name: get to word! item/1
+            name/4: name/4  ; refresh
             tween 'fnt-id/color/4 255 0 item/5 item/6 t :ease-in-out-quart
         ]
     ]
@@ -386,11 +386,11 @@ scale-text: function [
     id         [any-word!] {identifier for the effect}
     t          [float!]    {current time}
     /init
-	    t-spec [block!]    {specification of the text effect}
+        t-spec [block!]    {specification of the text effect}
     /rand    
 ][
     either init [   ; initialize
-	    t-obj: make text-effect	t-spec
+        t-obj: make text-effect    t-spec
         chunks: split-text t-obj/text t-obj/font t-obj/mode
         starts: collect [
             st: t-obj/start
@@ -421,7 +421,7 @@ scale-text: function [
             ]
         ]    
     ][  ; animate
-	    t-obj: text-data/:id/effect
+        t-obj: text-data/:id/effect
         set [sc-p sc-x sc-y] select [     ; scale adjustments
             top-left:     [0x0 0.0 0.0]
             top:          [0x0 1.0 0.0]
