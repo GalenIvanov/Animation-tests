@@ -6,10 +6,22 @@ Red [
 
 st-time: 0
 pascal: none
-
 text-data: make map! 100
 
 random/seed now
+
+text-effect: make object! [
+    text: ""        ; text to render   
+	font: none      ; font to use
+	mode: 'chars    ; how to split the text  
+	from: 'center   ; origin of scaling
+	posXY: 0x0      ; where to place the text  
+	sp-x:  1.0      ; spacing factor for X direction
+	sp-y:  1.0      ; spacing factor for Y direction
+    start: 1.0      ; start time
+    dur:   1.0      ; duration 
+    delay: 0.1	    ; delay between subanimations
+]
 
 ;------------------------------------------------------------------------------------------------
 ; easing functions
@@ -272,23 +284,6 @@ char-offsets: function [
     next collect [repeat n length? new-src [keep caret-to-offset txt n]]
 ]
 
-; unnecessary !!!
-char-box-sizes: function [
-   {Calculates the size of the bounding box of each character
-   in the text for a given font settings}
-    src [string!]
-    fnt [object!]
-][
-    size: as-pair fnt/size * length? src fnt/size
-    collect [
-        foreach c src [
-            txt: make make-face 'rich-text compose [size: (size) text: (to string! c)]
-            txt/font: copy fnt
-            keep size-text txt
-        ]
-    ]
-]
-
 text-box-size: function [
     {Calculates the size of the bounding box
     of a text for a given font settings}
@@ -301,9 +296,6 @@ text-box-size: function [
     size-text txt
 ]
 
-; Isn't it better to append a character and use it to 
-; calculate the widths?
-; Chunks will consist of text, start posiiton and size
 split-text: function [
     {Splits src on characters, words (on spaces and newlines) 
     or lines (on newlines) and returns a block of blocks,  
@@ -340,24 +332,17 @@ fade-in-text: function [
     id         [any-word!] {identifier for the effect}
     t          [float!]    {current time}
     /init
-        txt    [string!]   {text to animate}
-        fnt    [object!]   {font to use}
-        mode   [any-word!] {chars, words or lines} 
-        pos    [pair!]     {were to place the text}
-        sp-x   [number!]   {scale factor for the offset in horizontal direction}
-        sp-y   [number!]   {scale factor for the offset in vertical direction}
-        start  [float!]    {start time of the animation}
-        dur    [float!]    {duration of the animation}
-        delay  [number!]   {how much is delayed the animaiton for each element}
+	    t-spec [block!]    {specification of the text effect}
     /rand    
 ][
     either init [   ; initialize
-        chunks: split-text txt fnt mode
+        t-obj: make text-effect	t-spec
+        chunks: split-text t-obj/text t-obj/font t-obj/mode
         starts: collect [
-            st: start
+            st: t-obj/start
             repeat n length? chunks [
                 keep st
-                st: st + delay
+                st: st + t-obj/delay
             ]
         ]
         if rand [random starts]
@@ -365,7 +350,7 @@ fade-in-text: function [
         repeat n length? chunks [
             fnt-name: rejoin [id "-fnt-" n]
             insert chunks/:n fnt-name
-            append chunks/:n reduce [starts/:n dur]
+            append chunks/:n reduce [starts/:n t-obj/dur]
         ]
         
         put text-data id compose/deep [chunks: [(chunks)]]
@@ -373,20 +358,22 @@ fade-in-text: function [
         collect [
             foreach item chunks [
                 fnt-name: to-word rejoin [item/1 "_"]
-                set fnt-name copy fnt
+                set fnt-name copy t-obj/font
                 fnt-id: to set-word! item/1
-                posx: item/2/x * sp-x 
-                posy: item/2/y * sp-y
+                posx: item/2/x * t-obj/sp-x 
+                posy: item/2/y * t-obj/sp-y
                 p: as-pair posx posy
                 keep compose [
                     (fnt-id) font (get fnt-name)
-                    text (pos + p) (item/4)
+                    text (t-obj/posXY + p) (item/4)
                 ]
             ]
         ]    
     ][  ; animate
         foreach item text-data/:id/chunks [
             fnt-id: get to word! rejoin [item/1 "_"]
+			name: get to word! item/1
+			name/4: name/4  ; refresh
             tween 'fnt-id/color/4 255 0 item/5 item/6 t :ease-in-out-quart
         ]
     ]
@@ -398,43 +385,32 @@ scale-text: function [
     from zero to its actual size, centered about itself}
     id         [any-word!] {identifier for the effect}
     t          [float!]    {current time}
-    from       [any-word!] {direction to scale from}        
     /init
-        txt    [string!]   {text to animate}
-        fnt    [object!]   {font to use}
-        mode   [any-word!] {chars, words or lines}
-        pos    [pair!]     {were to place the text}
-        sp-x   [number!]   {scale factor for the offset in horizontal direction}
-        sp-y   [number!]   {scale factor for the offset in vertical direction}
-        start  [float!]    {start time of the animation}
-        dur    [float!]    {duration of the animation}
-        delay  [number!]   {how much is delayed the animaiton for each element}
+	    t-spec [block!]    {specification of the text effect}
     /rand    
 ][
     either init [   ; initialize
-        chunks: split-text txt fnt mode
+	    t-obj: make text-effect	t-spec
+        chunks: split-text t-obj/text t-obj/font t-obj/mode
         starts: collect [
-            st: start
+            st: t-obj/start
             repeat n length? chunks [
                 keep st
-                st: st + delay
+                st: st + t-obj/delay
             ]
         ]
         if rand [random starts]
         
         repeat n length? chunks [
-            append chunks/:n reduce [starts/:n dur]
+            append chunks/:n reduce [starts/:n t-obj/dur]
             name: to-set-word rejoin [id "_" n]
             insert chunks/:n name
         ]
-        put text-data id compose/deep [chunks: [(chunks)]]
+        put text-data id compose/deep [effect: (t-obj)chunks: [(chunks)]]
         
         collect [
             n: 0
             foreach item chunks [
-                posx: item/2/x * sp-x 
-                posy: item/2/y * sp-y
-                p: as-pair posx posy
                 keep compose/deep [
                     (item/1)
                     translate 0x0 [
@@ -445,53 +421,28 @@ scale-text: function [
             ]
         ]    
     ][  ; animate
-        sc-p: select [
-            top-left:     0x0
-            top:          0x0
-            top-right:    2x0
-            left:         0x0
-            center:       1x1
-            right:        2x0
-            bottom-left:  0x2
-            bottom:       0x2
-            bottom-right: 2x2
-        ] from
-        
-        sc-x: select [
-            top-left:     0.0
-            top:          1.0
-            top-right:    0.0
-            left:         0.0
-            center:       0.0
-            right:        0.0
-            bottom-left:  0.0
-            bottom:       1.0
-            bottom-right: 0.0
-        ] from
-        
-        sc-y: select [
-            top-left:     0.0
-            top:          0.0
-            top-right:    0.0
-            left:         1.0
-            center:       0.0
-            right:        1.0
-            bottom-left:  0.0
-            bottom:       0.0
-            bottom-right: 0.0
-        ] from
-        
-        
+	    t-obj: text-data/:id/effect
+        set [sc-p sc-x sc-y] select [     ; scale adjustments
+            top-left:     [0x0 0.0 0.0]
+            top:          [0x0 1.0 0.0]
+            top-right:    [2x0 0.0 0.0]
+            left:         [0x0 0.0 1.0]
+            center:       [1x1 0.0 0.0]
+            right:        [2x0 0.0 1.0]
+            bottom-left:  [0x2 0.0 0.0]
+            bottom:       [0x2 1.0 0.0]
+            bottom-right: [2x2 0.0 0.0]
+        ] t-obj/from
+              
         foreach item text-data/:id/chunks [
             name: get item/1
-            ; pos, sp-x and sp-y must be read from the map!
-            posx: item/2/x ;* sp-x 
-            posy: item/2/y ;* sp-y
+            posx: item/2/x * t-obj/sp-x 
+            posy: item/2/y * t-obj/sp-y
             p: as-pair posx posy
             d: item/3 / 2
-            pos: 100x100
-            tr1: pos + p + (d * sc-p)
-            tr2: pos + p
+            
+            tr1: t-obj/posXY + p + (d * sc-p)
+            tr2: t-obj/posXY + p
             ; I need to facilitate tweening of pairs!
             tween 'name/2/x tr1/x tr2/x item/5 item/6 t :ease-in-out-elastic
             tween 'name/2/y tr1/y tr2/y item/5 item/6 t :ease-in-out-elastic
@@ -574,6 +525,5 @@ text-along-curve: function [
         ]
     ]
 ]
-
 
 ; tests were moved to separate files
