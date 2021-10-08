@@ -130,24 +130,21 @@ ease-in-out-bounce: func [x][
 ]
 ;------------------------------------------------------------------------------------------------
 
-tween: func [
+tween: function [
     {Interpolates a value between value1 and value2 at time t
     in the stretch start .. start + duration using easing function ease}
-    target   [word! path!] {}
-    value1   [number!]     {Value to interpolate from}
-    value2   [number!]     {Value to interpolate to}
-    start    [float!]      {Start of the time period}
-    duration [float!]      {Duration of the time period}
-    t        [float!]      {Current time}
-    ease     [function!]   {Easing function}
+    target   [word! path!]          {the word or path to set}
+    value1   [number! pair! tuple!] {Value to interpolate from}
+    value2   [number! pair! tuple!] {Value to interpolate to}
+    start    [float!]               {Start of the time period}
+    duration [float!]               {Duration of the time period}
+    t        [float!]               {Current time}
+    ease     [function!]            {Easing function}
 ][
-   ;I need to add support for pairs and tuples
     if all [t >= start t < (start + duration)][
-        either integer? value1 [ 
-            set target to integer! (ease t - start / duration) * (value2 - value1) + value1 
-        ][
-            set target (ease t - start / duration) * (value2 - value1) + value1 
-        ]        
+        val: value1 + (value2 - value1 * ease t - start / duration)  
+        if integer? value1 [val: to integer! val]
+        set target val
     ]
 ]
 
@@ -230,6 +227,7 @@ b-search: function [
     {Returns the index of the largest element of src 
     that is less than or equal to target}
     src    [block!]  {block of numbers}
+
     target [number!] {the number to be searched}
 ][
     L: 1
@@ -336,7 +334,7 @@ fade-in-text: function [
     /rand    
 ][
     either init [   ; initialize
-        t-obj: make text-effect    t-spec
+        t-obj: make text-effect t-spec
         chunks: split-text t-obj/text t-obj/font t-obj/mode
         starts: collect [
             st: t-obj/start
@@ -379,7 +377,6 @@ fade-in-text: function [
     ]
 ]
 
-; Here
 scale-text: function [
     {Animate the text so that each component scales up
     from zero to its actual size, centered about itself}
@@ -390,7 +387,7 @@ scale-text: function [
     /rand    
 ][
     either init [   ; initialize
-        t-obj: make text-effect    t-spec
+        t-obj: make text-effect t-spec
         chunks: split-text t-obj/text t-obj/font t-obj/mode
         starts: collect [
             st: t-obj/start
@@ -443,15 +440,12 @@ scale-text: function [
             
             tr1: t-obj/posXY + p + (d * sc-p)
             tr2: t-obj/posXY + p
-            ; I need to facilitate tweening of pairs!
-            tween 'name/2/x tr1/x tr2/x item/5 item/6 t :ease-in-out-elastic
-            tween 'name/2/y tr1/y tr2/y item/5 item/6 t :ease-in-out-elastic
-            tween 'name/3/2   sc-x   1.0 item/5 item/6 t :ease-in-out-elastic
+            tween 'name/2     tr1    tr2 item/5 item/6 t :ease-in-out-elastic ; translate
+            tween 'name/3/2   sc-x   1.0 item/5 item/6 t :ease-in-out-elastic ; scale
             tween 'name/3/3   sc-y   1.0 item/5 item/6 t :ease-in-out-elastic
         ]
     ]    
 ]
-
 
 text-along-curve: function [
     {Flow a text along Bezier curve}
