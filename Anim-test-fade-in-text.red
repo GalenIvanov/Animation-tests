@@ -47,7 +47,7 @@ view [
             (fade-bl2)
             (fade-bl3)
             line-width 250 line-cap round
-			tr: translate 0x3300 [line 250x0 950x0]	
+            tr: translate 0x3300 [line 250x0 950x0]    
             (fade-bl4)
             (fade-bl5)
             (fade-bl6)
@@ -64,9 +64,9 @@ view [
         fade-in-text 'fade-txt5 tm
         fade-in-text 'fade-txt6 tm
         
-		tween 'tr/2    0x3300    0x2300 0.0 2.0 tm :ease-in-out-elastic
-		tween 'tr/2    0x2300 1200x2300 4.0 2.0 tm :ease-in-out-elastic
-		tween 'tr/2 1200x2300 2450x2300 7.0 2.0 tm :ease-in-out-elastic
+        tween 'tr/2    0x3300    0x2300 0.0 2.0 tm :ease-in-out-elastic
+        tween 'tr/2    0x2300 1200x2300 4.0 2.0 tm :ease-in-out-elastic
+        tween 'tr/2 1200x2300 2450x2300 7.0 2.0 tm :ease-in-out-elastic
     ]
     on-create [print "start" st-time: now/precise]
 ]
