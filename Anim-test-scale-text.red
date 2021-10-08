@@ -1,5 +1,5 @@
 Red [
-    title: "Animation tests - scale-text"
+    title: "Animation tests - scale-text from top"
     author: "Galen Ivanov"
     needs: view
 ]
@@ -16,7 +16,7 @@ dui in turpis lobortis luctus. Phasellus ultricies ipsum eu
 dui bibendum finibus. In urna libero, ultrices sed rhoncus ut,
 consequat et magna. Sed a tortor a ex sodales pretium.}
 
-txt-bl: compose [text: (text1)  font: (fnt1) mode: 'chars from: 'center delay: 0.01 posXY: 150x150]
+txt-bl: compose [text: (text1) font: (fnt1) mode: 'chars from: 'center delay: 0.01 posXY: 150x150]
 scale-bl: scale-text/init/rand 'scale-txt 0.0 txt-bl
 
 view [
