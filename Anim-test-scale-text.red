@@ -24,9 +24,7 @@ view [
     bb: base 760x220 black rate 60
     draw compose/deep [
         font fnt1
-        scale 0.15 0.15 [
-           (scale-bl)
-        ]   
+        scale 0.15 0.15 [(scale-bl)]   
     ]
     on-time [
         tm: to float! difference now/precise st-time
