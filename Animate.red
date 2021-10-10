@@ -10,6 +10,19 @@ text-data: make map! 100
 
 random/seed now
 
+effect: make object! [
+    val1:  0.0          ; starting value
+    val2:  1.0          ; end value
+    start: 0.0          ; starting time
+    dur:   1.0          ; duration 
+    delay: 0.1    ; is it necessary?
+    ease:  'ease-linear ; easing function
+    loop:  'once        ; repetition of the effect in time
+    fns:   copy []      ; a block of callback functions ; arity 2: [id time]
+]
+
+timeline: make map! 100 ; the timeline of effects key: value <- id: effect
+
 text-effect: make object! [
     text: ""        ; text to render   
     font: none      ; font to use
@@ -18,9 +31,36 @@ text-effect: make object! [
     posXY: 0x0      ; where to place the text  
     sp-x:  1.0      ; spacing factor for X direction
     sp-y:  1.0      ; spacing factor for Y direction
-    start: 1.0      ; start time
+    start: 1.0      ; starting time
     dur:   1.0      ; duration 
-    delay: 0.1        ; delay between subanimations
+    delay: 0.1      ; delay between subanimations
+    
+]
+
+parse-anim: function [
+    {Takes a block of draw and animate commands and generate a draw block
+    for the target face and a timeline for the animations}
+    spec   [block!]       {A block of draw and animate commands}
+    target [word! path!]  {A face to render the draw block and animations}
+][
+    ani-cmd: make block! 100
+    commands: [    ; test list - will be updated
+          'from
+        | 'to
+        | 'start
+        | 'dur
+        | 'delay
+        | 'ease
+        | 'loop
+    ]
+    rule: [some [p:
+                 set w commands (append ani-cmd w)
+               | word! | number! | pair! | tuple!
+               | into rule
+        ]
+    ]
+    parse spec rule
+    probe ani-cmd
 ]
 
 ;------------------------------------------------------------------------------------------------
@@ -358,7 +398,7 @@ fade-in-text: function [
                 fnt-name: to-word rejoin [item/1 "_"]
                 set fnt-name copy t-obj/font
                 fnt-id: to set-word! item/1
-                posx: item/2/x * t-obj/sp-x 
+                posx: item/2/x * t-obj/sp-x
                 posy: item/2/y * t-obj/sp-y
                 p: as-pair posx posy
                 keep compose [
