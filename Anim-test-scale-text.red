@@ -18,6 +18,14 @@ consequat et magna. Sed a tortor a ex sodales pretium.}
 
 txt-bl: compose [text: (text1) font: (fnt1) mode: 'chars from: 'center delay: 0.01 posXY: 150x150]
 scale-bl: scale-text/init/rand 'scale-txt 0.0 txt-bl
+ablock: [10x10 100x100]
+
+; test block for parse-anim
+ani-bl: compose/deep [
+        font fnt1
+        scale from 0.15 to 1.0 start 1.25 0.15 10x10 [box (ablock)]   
+]
+;parse-anim ani-bl 'base
 
 view [
     title "Animate"
@@ -30,5 +38,5 @@ view [
         tm: to float! difference now/precise st-time
         scale-text 'scale-txt tm
     ]
-    on-create [print "start" st-time: now/precise]
+    on-create [st-time: now/precise]
 ]
