@@ -4,24 +4,25 @@ Red [
     needs: view
 ]
 
-st-time: 0
+st-time: now/precise
 pascal: none
 text-data: make map! 100
 
 random/seed now
 
 effect: make object! [
-    val1:  0.0          ; starting value
+    val1:  0.0          ; starting value to change
     val2:  1.0          ; end value
     start: 0.0          ; starting time
-    dur:   1.0          ; duration 
-    delay: 0.1    ; is it necessary?
-    ease:  'ease-linear ; easing function
+    dur:   1.0          ; duration of the animation
+    delay: 0.0          ; delay between successive subanimations
+    ease:  none         ; easing function
     loop:  'once        ; repetition of the effect in time
     fns:   copy []      ; a block of callback functions ; arity 2: [id time]
 ]
 
 timeline: make map! 100 ; the timeline of effects key: value <- id: effect
+                        ; there should be a record for each face!
 
 text-effect: make object! [
     text: ""        ; text to render   
@@ -34,33 +35,104 @@ text-effect: make object! [
     start: 1.0      ; starting time
     dur:   1.0      ; duration 
     delay: 0.1      ; delay between subanimations
-    
+]
+
+process-timeline: has [
+    t target w
+][
+    t: to float! difference now/precise st-time
+    foreach [_ val] timeline [
+        w: val/2
+        tween val/1 w/val1 w/val2 w/start w/dur t :w/ease
+    ]
 ]
 
 parse-anim: function [
-    {Takes a block of draw and animate commands and generate a draw block
+    {Takes a block of draw and animate commands and generates a draw block
     for the target face and a timeline for the animations}
-    spec   [block!]       {A block of draw and animate commands}
-    target [word! path!]  {A face to render the draw block and animations}
+    spec   [block!]               {A block of draw and animate commands}
+    target [word! path! object!]  {A face to render the draw block and animations}
 ][
-    ani-cmd: make block! 100
-    commands: [    ; test list - will be updated
-          'from
-        | 'to
-        | 'start
-        | 'dur
-        | 'delay
-        | 'ease
-        | 'loop
+    value: [number! | pair! | tuple! | string!]
+    
+    start: [
+        ['start set st number!
+            opt [
+                'after set ref word! (ref-ofs: 10 {ref's start + dur})  ; relative to the end of the specified animation
+              | 'along set ref word! (ref-ofs: 20 {ref's start})  ; relative to the start of the specified animation
+            ]
+        ] (append clear ani-bl [ease: :ease-linear] ani-bl append ani-bl compose [start: (st + ref-ofs)])
     ]
-    rule: [some [p:
-                 set w commands (append ani-cmd w)
-               | word! | number! | pair! | tuple!
-               | into rule
-        ]
+    
+    dur: [['duration set d number!] (append ani-bl compose [dur: (d)])]
+    
+    delay: [['delay set dl number!](append ani-bl compose [delay: (dl)])]
+    ; ease should be able to accept user-defined functions as well!
+    ease: [['ease set e any-word!](append ani-bl compose [ease: (e)])]
+    
+    from: [
+        ['from keep p1: value 'to p2: value]
+        (append ani-bl compose [val1: (p1/1)]
+         append ani-bl compose [val2: (p2/1)]
+         cur-effect: make effect ani-bl
+         trgt: to-path reduce [to-word cur-target val-ofs + 1]
+         put timeline to-string trgt reduce [trgt cur-effect]
+         val-ofs: val-ofs + 1
+         )
     ]
-    parse spec rule
-    probe ani-cmd
+    
+    ;word: [
+    ;    sw: [opt set-word!] (print sw/1 cur-target: sw/1 setw: true)
+    ;    p: word!                        ; Draw commands and markers for them         
+    ;    (val-ofs: val-ofs + 1
+    ;    unless setw [cur-target: rejoin [p/1 cur-idx: cur-idx + 1]])
+    ;    :p if (not setw) keep (to-set-word cur-target) skip keep word! (setw: false)
+    ;]
+    
+    commands: [
+        opt start
+        opt dur
+        opt delay
+        opt ease
+        opt 'loop
+    ]
+    
+    anim-rule: [
+        collect [
+            some [
+                    commands
+                    opt keep set-word!                          ; displaces the value a set-word! is pointing to!
+                    p: word! (val-ofs: 1                        ; Draw commands and markers for them         
+                    cur-target: rejoin [p/1 cur-idx: cur-idx + 1])
+                    :p keep (to-set-word cur-target) keep word!
+                    opt some from                               ; animated parameter 
+                    opt any keep value (val-ofs: val-ofs + 1)   ; parameters data     
+               | into anim-rule                                 ; block 
+            ]
+        ]    
+    ]
+
+    ani-bl: copy [ease: :ease-linear]
+    draw-block: make block! 1000
+    cur-effect: make block! 20
+    ref-ofs: 0.0
+    val-ofs: 1
+    cur-idx: 0
+    cur-target: none
+    cur-effect: none
+    setw: false
+    
+    draw-block: parse spec anim-rule
+    target/draw: draw-block
+    
+    actors: make block! 10
+    append clear actors [on-time: func [face event][process-timeline]]
+    target/actors: object actors
+    
+    st-time: now/precise
+    probe ani-bl
+    ;probe draw-block
+    
 ]
 
 ;------------------------------------------------------------------------------------------------
@@ -173,7 +245,7 @@ ease-in-out-bounce: func [x][
 tween: function [
     {Interpolates a value between value1 and value2 at time t
     in the stretch start .. start + duration using easing function ease}
-    target   [word! path!]          {the word or path to set}
+    target   [word! any-path!]          {the word or path to set}
     value1   [number! pair! tuple!] {Value to interpolate from}
     value2   [number! pair! tuple!] {Value to interpolate to}
     start    [float!]               {Start of the time period}
@@ -181,7 +253,7 @@ tween: function [
     t        [float!]               {Current time}
     ease     [function!]            {Easing function}
 ][
-    if all [t >= start t < (start + duration)][
+    if all [t >= start t <= (start + duration)][
         val: value1 + (value2 - value1 * ease t - start / duration)  
         if integer? value1 [val: to integer! val]
         set target val
