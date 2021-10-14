@@ -53,10 +53,10 @@ parse-anim: function [
     spec   [block!]               {A block of draw and animate commands}
     target [word! path! object!]  {A face to render the draw block and animations}
 ][
-    value: [number! | pair! | tuple! | string!]
+    value: [number! | pair! | tuple! | string! | object! | image!]
     
     start: [
-        ['start set st number!
+        ['start set st number! (start-v: st)
             opt [
                 'after set ref word! (ref-ofs: 10 {ref's start + dur})  ; relative to the end of the specified animation
               | 'along set ref word! (ref-ofs: 20 {ref's start})  ; relative to the start of the specified animation
@@ -66,7 +66,7 @@ parse-anim: function [
     
     dur: [['duration set d number!] (append ani-bl compose [dur: (d)])]
     
-    delay: [['delay set dl number!](append ani-bl compose [delay: (dl)])]
+    delay: [['delay set dl number!](delay-v: dl append ani-bl compose [delay: (dl)])]
     ; ease should be able to accept user-defined functions as well!
     ease: [['ease set e any-word!](append ani-bl compose [ease: (e)])]
     
@@ -76,9 +76,18 @@ parse-anim: function [
          append ani-bl compose [val2: (p2/1)]
          cur-effect: make effect ani-bl
          trgt: to-path reduce [to-word cur-target val-ofs + 1]
+         start-v: start-v + delay-v
+         cur-effect/start: start-v
+         
          put timeline to-string trgt reduce [trgt cur-effect]
          val-ofs: val-ofs + 1
          )
+    ]
+    
+    word: [p: word! (val-ofs: 1                        ; Draw commands and markers for them
+           cur-target: rejoin [p/1 cur-idx: cur-idx + 1])
+           :p keep (to-set-word cur-target)
+           keep word!
     ]
     
     ;word: [
@@ -88,8 +97,8 @@ parse-anim: function [
     ;    unless setw [cur-target: rejoin [p/1 cur-idx: cur-idx + 1]])
     ;    :p if (not setw) keep (to-set-word cur-target) skip keep word! (setw: false)
     ;]
-    
-    commands: [
+        
+    command: [
         opt start
         opt dur
         opt delay
@@ -100,14 +109,11 @@ parse-anim: function [
     anim-rule: [
         collect [
             some [
-                    commands
-                    opt keep set-word!                          ; displaces the value a set-word! is pointing to!
-                    p: word! (val-ofs: 1                        ; Draw commands and markers for them         
-                    cur-target: rejoin [p/1 cur-idx: cur-idx + 1])
-                    :p keep (to-set-word cur-target) keep word!
-                    opt some from                               ; animated parameter 
-                    opt any keep value (val-ofs: val-ofs + 1)   ; parameters data     
-               | into anim-rule                                 ; block 
+                    command
+                    opt keep set-word!                             ; displaces the value a set-word! is pointing to!
+                    word                                           ; Draw command
+                    any [keep value (val-ofs: val-ofs + 1) | from] ; parameters, incl. animated ones
+               | into anim-rule                                    ; block 
             ]
         ]    
     ]
@@ -115,6 +121,8 @@ parse-anim: function [
     ani-bl: copy [ease: :ease-linear]
     draw-block: make block! 1000
     cur-effect: make block! 20
+    delay-v: 0.0
+    start-v: 0.0
     ref-ofs: 0.0
     val-ofs: 1
     cur-idx: 0
@@ -123,16 +131,15 @@ parse-anim: function [
     setw: false
     
     draw-block: parse spec anim-rule
+    ;probe draw-block
+    ;probe ani-bl
     target/draw: draw-block
     
     actors: make block! 10
     append clear actors [on-time: func [face event][process-timeline]]
     target/actors: object actors
     
-    st-time: now/precise
-    probe ani-bl
-    ;probe draw-block
-    
+    st-time: now/precise  
 ]
 
 ;------------------------------------------------------------------------------------------------
@@ -253,11 +260,15 @@ tween: function [
     t        [float!]               {Current time}
     ease     [function!]            {Easing function}
 ][
-    if all [t >= start t <= (start + duration)][
+    end-t: start + duration * 0.995  ; depends on the easing!
+    if all [t >= start t <= end-t][
         val: value1 + (value2 - value1 * ease t - start / duration)  
         if integer? value1 [val: to integer! val]
         set target val
     ]
+    if all [t > end-t t <= (start + duration)][
+        set target value2
+    ]    
 ]
 
 ;------------------------------------------------------------------------------------------------
