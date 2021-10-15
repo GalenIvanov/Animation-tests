@@ -61,7 +61,7 @@ parse-anim: function [
                 'after set ref word! (ref-ofs: 10 {ref's start + dur})  ; relative to the end of the specified animation
               | 'along set ref word! (ref-ofs: 20 {ref's start})  ; relative to the start of the specified animation
             ]
-        ] (append clear ani-bl [ease: :ease-linear] ani-bl append ani-bl compose [start: (st + ref-ofs)])
+        ] (ani-bl append clear ani-bl compose [start: (st + ref-ofs)])
     ]
     
     dur: [['duration set d number!] (append ani-bl compose [dur: (d)])]
@@ -72,22 +72,52 @@ parse-anim: function [
     
     from: [
         ['from keep p1: value 'to p2: value]
-        (append ani-bl compose [val1: (p1/1)]
-         append ani-bl compose [val2: (p2/1)]
-         cur-effect: make effect ani-bl
-         trgt: to-path reduce [to-word cur-target val-ofs + 1]
-         start-v: start-v + delay-v
-         cur-effect/start: start-v
-         
-         put timeline to-string trgt reduce [trgt cur-effect]
-         val-ofs: val-ofs + 1
+        (    
+             append ani-bl compose [val1: (p1/1)]
+             append ani-bl compose [val2: (p2/1)]
+             cur-effect: make effect ani-bl
+             trgt: to-path reduce [to-word cur-target val-ofs + 1]
+             start-v: start-v + delay-v
+             cur-effect/start: start-v
+             put timeline to-string trgt reduce [trgt cur-effect]
+             val-ofs: val-ofs + 1
          )
+    ]
+    
+    ; non-standard Draw parameters and -fx parameters
+    from-fx: [
+        ['from p1: value 'to p2: value]
+        (   
+            append ani-bl compose [val1: (p1/1)]
+            append ani-bl compose [val2: (p2/1)]
+            cur-effect: make effect ani-bl
+            trgt: to-path reduce [to-word cur-target cur-fld]
+            start-v: start-v + delay-v
+            cur-effect/start: start-v
+            put timeline to-string trgt reduce [trgt cur-effect]
+        )
     ]
     
     word: [p: word! (val-ofs: 1                        ; Draw commands and markers for them
            cur-target: rejoin [p/1 cur-idx: cur-idx + 1])
            :p keep (to-set-word cur-target)
            keep word!
+    ]
+    
+    font: [
+        keep 'font keep [set font-name word! | object!]
+        (cur-target: either font-name [
+             font-name
+         ][
+            rejoin ['ani-font cur-idx: cur-idx + 1]
+        ]
+        )
+        any [
+            ['font-size  (cur-fld: 'size)
+          | 'font-color (cur-fld: 'color)
+          | 'font-angle (cur-fld: 'angle)]
+             [from-fx | integer! | tuple!]
+        ] 
     ]
     
     ;word: [
@@ -104,6 +134,7 @@ parse-anim: function [
         opt delay
         opt ease
         opt 'loop
+        opt font
     ]
     
     anim-rule: [
@@ -128,6 +159,8 @@ parse-anim: function [
     cur-idx: 0
     cur-target: none
     cur-effect: none
+    cur-fld: none
+    font-name: none
     setw: false
     
     draw-block: parse spec anim-rule
@@ -253,8 +286,8 @@ tween: function [
     {Interpolates a value between value1 and value2 at time t
     in the stretch start .. start + duration using easing function ease}
     target   [word! any-path!]          {the word or path to set}
-    value1   [number! pair! tuple!] {Value to interpolate from}
-    value2   [number! pair! tuple!] {Value to interpolate to}
+    val1     [number! pair! tuple!] {Value to interpolate from}
+    val2     [number! pair! tuple!] {Value to interpolate to}
     start    [float!]               {Start of the time period}
     duration [float!]               {Duration of the time period}
     t        [float!]               {Current time}
@@ -262,12 +295,19 @@ tween: function [
 ][
     end-t: start + duration * 0.995  ; depends on the easing!
     if all [t >= start t <= end-t][
-        val: value1 + (value2 - value1 * ease t - start / duration)  
-        if integer? value1 [val: to integer! val]
+        either tuple? val1 [
+            val: val1
+            repeat n length? val1 [
+                val/:n: to integer! val1/:n + (val2/:n - val1/:n * ease t - start / duration) % 256
+            ]
+        ][
+            val: val1 + (val2 - val1 * ease t - start / duration)  
+            if integer? val1 [val: to integer! val]
+        ]    
         set target val
     ]
     if all [t > end-t t <= (start + duration)][
-        set target value2
+        set target val2
     ]    
 ]
 
