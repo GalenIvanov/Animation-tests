@@ -16,7 +16,7 @@ effect: make object! [
     start: 0.0          ; starting time
     dur:   1.0          ; duration of the animation
     delay: 0.0          ; delay between successive subanimations
-    ease:  none         ; easing function
+    ease:  func [x][x]  ; easing function
     loop:  'once        ; repetition of the effect in time
     fns:   copy []      ; a block of callback functions ; arity 2: [id time]
 ]
@@ -45,6 +45,7 @@ process-timeline: has [
         w: val/2
         tween val/1 w/val1 w/val2 w/start w/dur t :w/ease
     ]
+    ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
 ]
 
 parse-anim: function [
@@ -53,7 +54,7 @@ parse-anim: function [
     spec   [block!]               {A block of draw and animate commands}
     target [word! path! object!]  {A face to render the draw block and animations}
 ][
-    value: [number! | pair! | tuple! | string! | object! | image!]
+    value: [[number! | pair! | tuple! | string! | object! | image!] (val-ofs: val-ofs + 1)]
     
     start: [
         ['start set st number! (start-v: st)
@@ -71,54 +72,49 @@ parse-anim: function [
     ease: [['ease set e any-word!](append ani-bl compose [ease: (e)])]
     
     from: [
-        ['from keep p1: value 'to p2: value]
+        ['from keep p1: value 'to p2: value (val-ofs: val-ofs - 1)]
         (    
              append ani-bl compose [val1: (p1/1)]
              append ani-bl compose [val2: (p2/1)]
              cur-effect: make effect ani-bl
-             trgt: to-path reduce [to-word cur-target val-ofs + 1]
+             probe val-ofs
+             trgt: to-path reduce [to-word cur-target val-ofs]
              start-v: start-v + delay-v
              cur-effect/start: start-v
              put timeline to-string trgt reduce [trgt cur-effect]
-             val-ofs: val-ofs + 1
+             ;val-ofs: val-ofs + 1
          )
     ]
     
-    ; non-standard Draw parameters and -fx parameters
+    ; non Draw parameters and -fx parameters
     from-fx: [
         ['from p1: value 'to p2: value]
         (   
             append ani-bl compose [val1: (p1/1)]
             append ani-bl compose [val2: (p2/1)]
             cur-effect: make effect ani-bl
-            trgt: to-path reduce [to-word cur-target cur-fld]
             start-v: start-v + delay-v
             cur-effect/start: start-v
-            put timeline to-string trgt reduce [trgt cur-effect]
+            trgt: cur-target
+            put timeline rejoin [to-string trgt cur-idx] reduce [trgt cur-effect]
         )
     ]
     
-    word: [p: word! (val-ofs: 1                        ; Draw commands and markers for them
-           cur-target: rejoin [p/1 cur-idx: cur-idx + 1])
+    param: [
+        'parameter
+        set t [path! | word!] (probe t cur-target: t cur-idx: cur-idx + 1)
+        from-fx
+    ]
+    
+    word: [p: word! (probe p/1 val-ofs: 1                        ; Draw commands and markers for them
+           cur-target: rejoin [p/1 cur-idx: cur-idx + 1]
+           if find [image font] p/1 [val-ofs: val-ofs + 1]
+           )
            :p keep (to-set-word cur-target)
            keep word!
     ]
     
-    font: [
-        keep 'font keep [set font-name word! | object!]
-        (cur-target: either font-name [
-             font-name
-         ][
-            rejoin ['ani-font cur-idx: cur-idx + 1]
-        ]
-        )
-        any [
-            ['font-size  (cur-fld: 'size)
-          | 'font-color (cur-fld: 'color)
-          | 'font-angle (cur-fld: 'angle)]
-             [from-fx | integer! | tuple!]
-        ] 
-    ]
+   
     
     ;word: [
     ;    sw: [opt set-word!] (print sw/1 cur-target: sw/1 setw: true)
@@ -134,23 +130,28 @@ parse-anim: function [
         opt delay
         opt ease
         opt 'loop
-        opt font
+        opt param
     ]
     
     anim-rule: [
         collect [
             some [
-                    command
-                    opt keep set-word!                             ; displaces the value a set-word! is pointing to!
-                    word                                           ; Draw command
-                    any [keep value (val-ofs: val-ofs + 1) | from] ; parameters, incl. animated ones
-               | into anim-rule                                    ; block 
+                ;(probe cur-target)
+                any command
+                opt keep set-word!                             ; displaces the value a set-word! is pointing to!
+
+                word                                      ; Draw command
+                opt keep [not 'from not 'to word!]
+                ; !!!
+                any [from | keep value] ; parameters, incl. animated ones
+              | into anim-rule                                 ; block 
             ]
         ]    
     ]
 
     ani-bl: copy [ease: :ease-linear]
     draw-block: make block! 1000
+    
     cur-effect: make block! 20
     delay-v: 0.0
     start-v: 0.0
@@ -158,12 +159,14 @@ parse-anim: function [
     val-ofs: 1
     cur-idx: 0
     cur-target: none
+    target-type: none
     cur-effect: none
     cur-fld: none
-    font-name: none
     setw: false
     
     draw-block: parse spec anim-rule
+    insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1]
+    ;probe at draw-block 10
     ;probe draw-block
     ;probe ani-bl
     target/draw: draw-block
@@ -293,21 +296,20 @@ tween: function [
     t        [float!]               {Current time}
     ease     [function!]            {Easing function}
 ][
-    end-t: start + duration * 0.995  ; depends on the easing!
+    end-t: duration * 1.05 + start  ; depends on the easing!
     if all [t >= start t <= end-t][
-        either tuple? val1 [
-            val: val1
-            repeat n length? val1 [
-                val/:n: to integer! val1/:n + (val2/:n - val1/:n * ease t - start / duration) % 256
-            ]
-        ][
-            val: val1 + (val2 - val1 * ease t - start / duration)  
-            if integer? val1 [val: to integer! val]
-        ]    
-        set target val
-    ]
-    if all [t > end-t t <= (start + duration)][
-        set target val2
+        either t < (start + duration) [
+            either tuple? val1 [
+                val: val1
+                repeat n length? val1 [
+                    val/:n: to integer! val1/:n + (val2/:n - val1/:n * ease t - start / duration) % 256
+                ]
+            ][
+                val: val1 + (val2 - val1 * ease t - start / duration)  
+                if integer? val1 [val: to integer! val]
+            ]    
+            set target val
+        ][set target val2]
     ]    
 ]
 
