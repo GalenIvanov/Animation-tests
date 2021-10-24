@@ -23,6 +23,7 @@ effect: make object! [
 
 timeline: make map! 100 ; the timeline of effects key: value <- id: effect
                         ; there should be a record for each face!
+time-map: make map! 100 ; for the named animations
 
 text-effect: make object! [
     text: ""        ; text to render   
@@ -48,134 +49,154 @@ process-timeline: has [
     ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
 ]
 
-parse-anim: function [
-    {Takes a block of draw and animate commands and generates a draw block
-    for the target face and a timeline for the animations}
-    spec   [block!]               {A block of draw and animate commands}
-    target [word! path! object!]  {A face to render the draw block and animations}
-][
-    value: [[number! | pair! | tuple! | string! | object! | image!] (val-ofs: val-ofs + 1)]
+context [
+
+    ani-bl: copy [ease: :ease-linear]
+    draw-block: make block! 1000
+    cur-effect: make block! 20
+    delay-v: 0.0
+    start-v: 0.0
+    start-anchor: 0
+    dur-v: 0.0
+    ref-ofs: 0.0
+    val-ofs: 1
+    cur-idx: 0
+    cur-target: none
+    user-target: none
+    cur-effect: none
+    time-id: none
+    cur-ref: none
+    from-count: 0
+    
+    value: [number! | pair! | tuple! | string! | object! | image!]
     
     start: [
-        ['start set st number! (start-v: st)
-            opt [
-                'after set ref word! (ref-ofs: 10 {ref's start + dur})  ; relative to the end of the specified animation
-              | 'along set ref word! (ref-ofs: 20 {ref's start})  ; relative to the start of the specified animation
+        ['start set st number!
+        (
+            start-v: st
+            if cur-ref [   ; reg the named entry
+               put time-map cur-ref reduce [start-anchor dur-v delay-v from-count]  
             ]
-        ] (ani-bl append clear ani-bl compose [start: (st + ref-ofs)])
+        )
+            opt [
+                ; relative to the end of the reference animation
+                'after set ref word! (
+                    probe time-map
+                    print [st mold ref mold cur-ref mold time-id]
+                    id: time-map/:ref
+                    ref-ofs: id/3 * id/4 + id/1 + id/2
+                    from-count: 0
+                ) 
+                ; relative to the start of the reference animation
+              | 'along set ref word! (ref-ofs: time-map/:ref/1)  
+            ]
+        ](
+            start-v: start-v + ref-ofs
+            start-anchor: start-v
+            append clear ani-bl compose [start: (start-v)]
+            cur-ref: time-id
+            ref-ofs: 0
+        )
     ]
     
-    dur: [['duration set d number!] (append ani-bl compose [dur: (d)])]
+    dur: [['duration set d number!] (dur-v: d append ani-bl compose [dur: (d)])]
     
     delay: [['delay set dl number!](delay-v: dl append ani-bl compose [delay: (dl)])]
     ; ease should be able to accept user-defined functions as well!
     ease: [['ease set e any-word!](append ani-bl compose [ease: (e)])]
     
+    from-value: [[word! | value] (val-ofs: val-ofs + 1)]
+    
     from: [
-        ['from keep p1: value 'to p2: value (val-ofs: val-ofs - 1)]
+        ['from keep p1: from-value 'to p2: from-value (val-ofs: val-ofs - 1)]
         (    
-             append ani-bl compose [val1: (p1/1)]
-             append ani-bl compose [val2: (p2/1)]
-             cur-effect: make effect ani-bl
-             probe val-ofs
-             trgt: to-path reduce [to-word cur-target val-ofs]
-             start-v: start-v + delay-v
-             cur-effect/start: start-v
-             put timeline to-string trgt reduce [trgt cur-effect]
-             ;val-ofs: val-ofs + 1
+            append ani-bl compose [val1: (p1/1)]
+            append ani-bl compose [val2: (p2/1)]
+            cur-effect: make effect ani-bl
+            trgt: to-path reduce [to-word cur-target val-ofs]
+            cur-effect/start: start-v
+            start-v: start-v + delay-v
+            put timeline to-string trgt reduce [trgt cur-effect]
+            from-count: from-count + 1
          )
     ]
     
-    ; non Draw parameters and -fx parameters
+    ; non Draw parameters and -fx parameters - too similar to form - must be merged!
     from-fx: [
-        ['from p1: value 'to p2: value]
+        ['from p1: from-value 'to p2: from-value]
         (   
             append ani-bl compose [val1: (p1/1)]
             append ani-bl compose [val2: (p2/1)]
             cur-effect: make effect ani-bl
-            start-v: start-v + delay-v
             cur-effect/start: start-v
-            trgt: cur-target
-            put timeline rejoin [to-string trgt cur-idx] reduce [trgt cur-effect]
+            start-v: start-v + delay-v
+            put timeline rejoin [to-string cur-target cur-idx] reduce [cur-target cur-effect]
+            from-count: from-count + 1
         )
     ]
     
     param: [
         'parameter
-        set t [path! | word!] (probe t cur-target: t cur-idx: cur-idx + 1)
+        set t [path! | word!] (cur-target: t cur-idx: cur-idx + 1)
         from-fx
     ]
     
-    word: [p: word! (probe p/1 val-ofs: 1                        ; Draw commands and markers for them
-           cur-target: rejoin [p/1 cur-idx: cur-idx + 1]
-           if find [image font] p/1 [val-ofs: val-ofs + 1]
+    word: [                             ; Draw commands and markers for them
+        opt set user-target set-word!
+        p: word! (                
+               val-ofs: 1
+               cur-target: any [user-target rejoin [p/1 cur-idx: cur-idx + 1]]
+               if find [image font] p/1 [val-ofs: val-ofs + 1]
+               user-target: none
            )
            :p keep (to-set-word cur-target)
            keep word!
     ]
     
-   
-    
-    ;word: [
-    ;    sw: [opt set-word!] (print sw/1 cur-target: sw/1 setw: true)
-    ;    p: word!                        ; Draw commands and markers for them         
-    ;    (val-ofs: val-ofs + 1
-    ;    unless setw [cur-target: rejoin [p/1 cur-idx: cur-idx + 1]])
-    ;    :p if (not setw) keep (to-set-word cur-target) skip keep word! (setw: false)
-    ;]
-        
     command: [
+        opt [set time-id [set-word! ahead 'start]]      ; named animation
         opt start
         opt dur
         opt delay
         opt ease
         opt 'loop
-        opt param
     ]
     
     anim-rule: [
         collect [
             some [
-                ;(probe cur-target)
-                any command
-                opt keep set-word!                             ; displaces the value a set-word! is pointing to!
-
-                word                                      ; Draw command
-                opt keep [not 'from not 'to word!]
-                ; !!!
-                any [from | keep value] ; parameters, incl. animated ones
-              | into anim-rule                                 ; block 
+                command
+                opt [
+                    param
+                  | word                                ; Draw command
+                    opt keep [not 'from not 'to word!]  ; word parameter, like font or image value
+                    any [from | keep value]             ; parameters, incl. animated ones
+                  | into anim-rule                          ; block 
+                ]                                      
+              
             ]
         ]    
     ]
 
-    ani-bl: copy [ease: :ease-linear]
-    draw-block: make block! 1000
-    
-    cur-effect: make block! 20
-    delay-v: 0.0
-    start-v: 0.0
-    ref-ofs: 0.0
-    val-ofs: 1
-    cur-idx: 0
-    cur-target: none
-    target-type: none
-    cur-effect: none
-    cur-fld: none
-    setw: false
-    
-    draw-block: parse spec anim-rule
-    insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1]
-    ;probe at draw-block 10
-    ;probe draw-block
-    ;probe ani-bl
-    target/draw: draw-block
-    
-    actors: make block! 10
-    append clear actors [on-time: func [face event][process-timeline]]
-    target/actors: object actors
-    
-    st-time: now/precise  
+    set 'parse-anim func [
+        {Takes a block of draw and animate commands and generates a draw block
+        for the target face and a timeline for the animations}
+        spec   [block!]               {A block of draw and animate commands}
+        target [word! path! object!]  {A face to render the draw block and animations}
+    ][
+        
+        draw-block: parse spec anim-rule
+        insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1]
+        probe draw-block
+        probe ani-bl
+        target/draw: draw-block
+        
+        actors: make block! 10
+        append clear actors [on-time: func [face event][process-timeline]]
+        target/actors: object actors
+        
+        st-time: now/precise  
+    ]
 ]
 
 ;------------------------------------------------------------------------------------------------
