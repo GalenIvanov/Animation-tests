@@ -100,7 +100,7 @@ context [
         ['start opt set st number! (
             start-v: any [st 0.0]
             if cur-ref [   ; reg the previously named entry
-               put time-map cur-ref reduce [start-anchor dur-v delay-v from-count - 1]  
+               put time-map cur-ref reduce [start-anchor dur-v delay-v from-count]  
             ]
         )
             opt [
