@@ -60,29 +60,52 @@ context [
     dur-v: 0.0
     ref-ofs: 0.0
     val-ofs: 1
+    val-idx: 1
     cur-idx: 0
+    target: none
     cur-target: none
     user-target: none
     cur-effect: none
     time-id: none
     cur-ref: none
+    scaled: none
     from-count: 0
     
-    value: [number! | pair! | tuple! | string! | object! | image!]
+    do-not-scale: [
+        [circle 3]
+        [circle 4]
+        [circle 5] 
+        [arc 4]
+        [arc 5]
+        [rotate 2]          ; assuming no 'pen or 'fill-pen !!!   
+        [scale 2]           ; assuming no 'pen or 'fill-pen !!!
+        [scale 3]           ; assuming no 'pen or 'fill-pen !!!
+        [skew 2]
+        [skew 3]
+        [transform 2]       ; rotate  - I need to account for <center> where necessary
+        [transform 3]       ; scale x - I need to account for <center> where necessary
+        [transform 4]       ; scale y - I need to account for <center> where necessary
+    ]
+    
+    rescale: does [
+        if all [
+            find [integer! float! pair!] type?/word scaled
+            not find/only do-not-scale reduce[target val-idx]
+        ] [scaled: scaled * 10]
+    ]
+    
+    value: [set scaled [float! | tuple! | string! | object! | image! | integer! | pair!] (rescale)]
     
     start: [
-        ['start set st number!
-        (
-            start-v: st
-            if cur-ref [   ; reg the named entry
-               put time-map cur-ref reduce [start-anchor dur-v delay-v from-count]  
+        ['start opt set st number! (
+            start-v: any [st 0.0]
+            if cur-ref [   ; reg the previously named entry
+               put time-map cur-ref reduce [start-anchor dur-v delay-v from-count - 1]  
             ]
         )
             opt [
                 ; relative to the end of the reference animation
                 'after set ref word! (
-                    probe time-map
-                    print [st mold ref mold cur-ref mold time-id]
                     id: time-map/:ref
                     ref-ofs: id/3 * id/4 + id/1 + id/2
                     from-count: 0
@@ -93,9 +116,11 @@ context [
         ](
             start-v: start-v + ref-ofs
             start-anchor: start-v
-            append clear ani-bl compose [start: (start-v)]
             cur-ref: time-id
             ref-ofs: 0
+            delay-v: 0.0
+            st: none
+            clear ani-bl
         )
     ]
     
@@ -105,13 +130,14 @@ context [
     ; ease should be able to accept user-defined functions as well!
     ease: [['ease set e any-word!](append ani-bl compose [ease: (e)])]
     
-    from-value: [[word! | value] (val-ofs: val-ofs + 1)]
+    from-value: [set v2 word! | value (v2: scaled)]
     
     from: [
-        ['from keep p1: from-value 'to p2: from-value (val-ofs: val-ofs - 1)]
-        (    
-            append ani-bl compose [val1: (p1/1)]
-            append ani-bl compose [val2: (p2/1)]
+        ['from p1: [[set v1 keep word!] | value keep (scaled) (v1: scaled)]
+         'to p2: from-value] (    
+            val-ofs: val-ofs + 1
+            append ani-bl compose [val1: (v1)]
+            append ani-bl compose [val2: (v2)]
             cur-effect: make effect ani-bl
             trgt: to-path reduce [to-word cur-target val-ofs]
             cur-effect/start: start-v
@@ -122,9 +148,10 @@ context [
     ]
     
     ; non Draw parameters and -fx parameters - too similar to form - must be merged!
+    ; I need to automatically scale up the font sizes !!!
     from-fx: [
-        ['from p1: from-value 'to p2: from-value]
-        (   
+        ['from p1: from-value 'to p2: from-value] (   
+            val-ofs: val-ofs + 1
             append ani-bl compose [val1: (p1/1)]
             append ani-bl compose [val2: (p2/1)]
             cur-effect: make effect ani-bl
@@ -145,8 +172,10 @@ context [
         opt set user-target set-word!
         p: word! (                
                val-ofs: 1
+               val-idx: 1
+               target: p/1
                cur-target: any [user-target rejoin [p/1 cur-idx: cur-idx + 1]]
-               if find [image font] p/1 [val-ofs: val-ofs + 1]
+               if find [image font linear radial diamond pattern bitmap] p/1 [val-ofs: val-ofs + 1]
                user-target: none
            )
            :p keep (to-set-word cur-target)
@@ -169,9 +198,9 @@ context [
                 opt [
                     param
                   | word                                ; Draw command
-                    opt keep [not 'from not 'to word!]  ; word parameter, like font or image value
-                    any [from | keep value]             ; parameters, incl. animated ones
-                  | into anim-rule                          ; block 
+                    opt keep [not 'from not 'to word!] (val-idx: val-idx + 1)  ; word parameter, like font or image value
+                    any [from | value keep (scaled) (val-idx: val-idx + 1)]             ; parameters, incl. animated ones
+                  | into anim-rule                      ; block 
                 ]                                      
               
             ]
@@ -187,10 +216,10 @@ context [
         
         draw-block: parse spec anim-rule
         insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1]
-        probe draw-block
-        probe ani-bl
+        ;probe draw-block
+        ;probe ani-bl
         target/draw: draw-block
-        
+       
         actors: make block! 10
         append clear actors [on-time: func [face event][process-timeline]]
         target/actors: object actors
