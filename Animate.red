@@ -135,7 +135,6 @@ context [
     from: [
         ['from p1: [[set v1 keep word!] | value keep (scaled) (v1: scaled)]
          'to p2: from-value] (    
-            val-ofs: val-ofs + 1
             append ani-bl compose [val1: (v1)]
             append ani-bl compose [val2: (v2)]
             cur-effect: make effect ani-bl
@@ -198,8 +197,8 @@ context [
                 opt [
                     param
                   | word                                ; Draw command
-                    opt keep [not 'from not 'to word!] (val-idx: val-idx + 1)  ; word parameter, like font or image value
-                    any [from | value keep (scaled) (val-idx: val-idx + 1)]             ; parameters, incl. animated ones
+                    opt keep [not 'from not 'to word!] (val-ofs: val-ofs + 1 val-idx: val-idx + 1)  ; word parameter, like font or image value
+                    any [[from | value keep (scaled) ](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]             ; parameters, incl. animated ones
                   | into anim-rule                      ; block 
                 ]                                      
               
@@ -216,7 +215,7 @@ context [
         
         draw-block: parse spec anim-rule
         insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1]
-        ;probe draw-block
+        probe draw-block
         ;probe ani-bl
         target/draw: draw-block
        
