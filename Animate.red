@@ -101,6 +101,7 @@ context [
             start-v: any [st 0.0]
             if cur-ref [   ; reg the previously named entry
                put time-map cur-ref reduce [start-anchor dur-v delay-v from-count]  
+               probe time-map/:cur-ref 
             ]
         )
             opt [
@@ -197,7 +198,8 @@ context [
     ]
     
     command: [
-        opt [set time-id [set-word! ahead 'start]]      ; named animation
+        (time-id: none)
+        opt [set time-id [set-word! ahead 'start]]   ; named animation
         opt start
         opt dur
         opt delay
