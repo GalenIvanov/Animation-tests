@@ -161,6 +161,9 @@ context [
         )
     ]
     
+    from-text: [
+    ]
+    
     param: [
         'parameter
         set t [path! | word!] (cur-target: t cur-idx: cur-idx + 1)
@@ -181,6 +184,18 @@ context [
            keep word!
     ]
     
+    text-fx: [
+        'text-fx
+        [set fxw word! (probe fxw) | object!]
+        any [
+            opt ['text-rotate    [value | from-text]]
+            opt ['text-scale   2 [value | from-text]]
+            opt ['text-translate [value | from-text]]
+            opt ['text-skew    2 [value | from-text]]
+            opt ['text-color     [value | from-text]]
+        ]    
+    ]
+    
     command: [
         opt [set time-id [set-word! ahead 'start]]      ; named animation
         opt start
@@ -196,6 +211,7 @@ context [
                 command
                 opt [
                     param
+                  | text-fx
                   | word                                ; Draw command
                     opt keep [not 'from not 'to word!] (val-ofs: val-ofs + 1 val-idx: val-idx + 1)  ; word parameter, like font or image value
                     any [[from | value keep (scaled) ](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]             ; parameters, incl. animated ones
