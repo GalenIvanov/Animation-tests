@@ -10,19 +10,19 @@ fnt1: make font! [name: "Verdana" size: 140 color: 255.255.255.0]
 
 anim-block: compose [
     pen white fill-pen sky line-width 2
-    box  0x40 900x450
+    box  0x60 900x450
     fill-pen (sky + 20.20.20)
-    box 200x40 250x450
-    box 300x40 350x450
-    box 400x40 450x450
-    box 500x40 550x450
-    box 600x40 650x450
-    box 700x40 750x450
-    box 800x40 850x450
+    box 200x60 250x450
+    box 300x60 350x450
+    box 400x60 450x450
+    box 500x60 550x450
+    box 600x60 650x450
+    box 700x60 750x450
+    box 800x60 850x450
     
     font fnt1 text 155x100 "Ref"
-    text  300x0 "Ref start"
-    text  550x0 "Ref end"
+    text  300x5 "Ref start"
+    text  550x5 "Ref end"
     text  5x150 "start -2.0  along Ref"
     text 50x200 "start along Ref"
     text 15x250 "start 2.0 along Ref"
@@ -32,11 +32,11 @@ anim-block: compose [
     
     start 0.0 duration 16.0
     pen papaya fill-pen yello
-    line line 300x20 300x450
-    line line 550x20 550x450
+    line line 300x30 300x450
+    line line 550x30 550x450
     translate from 0x0 to 800x0 [
-        line 200x40 200x450
-        elapsed: text 150x15 "0.00"
+        line 200x45 200x450
+        elapsed: text 200x25 "0.00"
     ]
     
     ref: start 2.0 duration 5.0
