@@ -70,6 +70,7 @@ context [
     cur-ref: none
     scaled: none
     from-count: 0
+    text-fx-id: 1
     
     do-not-scale: [
         [circle 3]
@@ -187,7 +188,11 @@ context [
     
     text-fx: [
         'text-fx
-        [set fxw word! (probe fxw) | object!]
+        [set txt-w word! | object!] (
+            fx-data: init-text-fx to word! rejoin ['t-fx text-fx-id] get txt-w
+            text-fx-id: text-fx-id + 1
+        )
+        keep (fx-data)
         any [
             opt ['text-rotate    [value | from-text]]
             opt ['text-scale   2 [value | from-text]]
@@ -233,8 +238,8 @@ context [
         
         draw-block: parse spec anim-rule
         insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1]
-        probe draw-block
-        ;probe ani-bl
+        ;probe draw-block
+        probe ani-bl
         target/draw: draw-block
        
         actors: make block! 10
@@ -554,6 +559,49 @@ split-text: function [
             ]
         ]
     ]
+]
+
+init-text-fx: function [
+    id     [any-word!]
+    t-spec [block!]
+][
+    t-obj: make text-effect t-spec
+    chunks: split-text t-obj/text t-obj/font t-obj/mode
+    starts: collect [
+        st: t-obj/start
+        repeat n length? chunks [
+            keep st
+            st: round/to st + t-obj/delay 0.01
+       ]
+    ]
+    ; if rand [random starts]
+    repeat n length? chunks [
+        fnt-name: rejoin [id "-fnt-" n]
+        insert chunks/:n fnt-name
+        append chunks/:n reduce [starts/:n t-obj/dur]
+    ]
+        
+    put text-data id compose/deep [chunks: [(chunks)]]
+    
+    collect [
+        foreach item chunks [
+            fnt-name: to-word rejoin [item/1 "_"]
+            set fnt-name copy t-obj/font
+            fnt-id: to set-word! item/1
+            posx: item/2/x * t-obj/sp-x
+            posy: item/2/y * t-obj/sp-y
+            p: as-pair posx posy
+            keep compose/deep [
+                (fnt-id) font (get fnt-name)
+                    translate (p) [
+                    scale 1.0 1.0
+                    text 0x0 (item/4)      
+                ]    
+    ;            text (t-obj/posXY + p) (item/4)
+            ]
+        ]
+    ] 
+   
 ]
 
 fade-in-text: function [
