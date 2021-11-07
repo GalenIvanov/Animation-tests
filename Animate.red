@@ -26,6 +26,7 @@ timeline: make map! 100 ; the timeline of effects key: value <- id: effect
 time-map: make map! 100 ; for the named animations
 
 text-effect: make object! [
+    id: none        ; 
     text: ""        ; text to render   
     font: none      ; font to use
     mode: 'chars    ; how to split the text  
@@ -71,6 +72,7 @@ context [
     scaled: none
     from-count: 0
     text-fx-id: 1
+    t-fx: none
     
     do-not-scale: [
         [circle 3]
@@ -189,13 +191,28 @@ context [
     text-fx: [
         'text-fx
         [set txt-w word! | object!] (
-            fx-data: init-text-fx to word! rejoin ['t-fx text-fx-id] get txt-w
+            t-obj: get txt-w
+            fx-data: init-text-fx t-obj/id t-obj
             text-fx-id: text-fx-id + 1
         )
         keep (fx-data)
         any [
             opt ['text-rotate    [value | from-text]]
             opt ['text-scale   2 [value | from-text]]
+            ( ; crude test
+             sv: 0.0 
+             ci: 0
+             repeat n length? text-data/(t-obj/id)/2 [
+                ani-bl/val1: 0.0
+                ani-bl/val2: 1.0
+                cur-effect: make effect ani-bl
+                cur-effect/start: sv
+                sv: sv + 0.01
+                ci: ci + 1
+                cur-target: to-path reduce [to-word rejoin [t-obj/id "-"n] 5]
+                put timeline to-string cur-target reduce [cur-target cur-effect]
+                ] 
+            )
             opt ['text-translate [value | from-text]]
             opt ['text-skew    2 [value | from-text]]
             opt ['text-color     [value | from-text]]
@@ -576,7 +593,7 @@ init-text-fx: function [
     ]
     ; if rand [random starts]
     repeat n length? chunks [
-        fnt-name: rejoin [id "-fnt-" n]
+        fnt-name: rejoin [id "-" n]
         insert chunks/:n fnt-name
         append chunks/:n reduce [starts/:n t-obj/dur]
     ]
@@ -585,19 +602,13 @@ init-text-fx: function [
     
     collect [
         foreach item chunks [
-            fnt-name: to-word rejoin [item/1 "_"]
+            fnt-name: to-word rejoin [item/1 "-fnt"]
             set fnt-name copy t-obj/font
             fnt-id: to set-word! item/1
-            posx: item/2/x * t-obj/sp-x
-            posy: item/2/y * t-obj/sp-y
-            p: as-pair posx posy
+            p: as-pair item/2/x * t-obj/sp-x item/2/y * t-obj/sp-y
             keep compose/deep [
-                (fnt-id) font (get fnt-name)
-                    translate (p) [
-                    scale 1.0 1.0
-                    text 0x0 (item/4)      
-                ]    
-    ;            text (t-obj/posXY + p) (item/4)
+                (fnt-id) font (fnt-name)
+                transform 0.0 0.0 1.0 (p) [text 0x0 (item/4)]
             ]
         ]
     ] 
