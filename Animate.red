@@ -51,8 +51,7 @@ process-timeline: has [
 ]
 
 context [
-
-    ani-bl: copy [ease: :ease-linear]
+    ani-bl: copy to block! effect
     draw-block: make block! 1000
     cur-effect: make block! 20
     delay-v: 0.0
@@ -101,6 +100,7 @@ context [
     
     start: [
         ['start opt set st number! (
+		    ani-bl: copy to block! effect
             start-v: any [st 0.0]
             if cur-ref [   ; reg the previously named entry
                put time-map cur-ref reduce [start-anchor dur-v delay-v from-count]  
@@ -108,14 +108,12 @@ context [
             ]
         )
             opt [
-                ; relative to the end of the reference animation
-                'after set ref word! (
+                'after set ref word! ( ; relative to the end of the reference animation
                     id: time-map/:ref
                     ref-ofs: id/3 * id/4 + id/1 + id/2
                     from-count: 0
                 ) 
-                ; relative to the start of the reference animation
-              | 'along set ref word! (ref-ofs: time-map/:ref/1)  
+              | 'along set ref word! (ref-ofs: time-map/:ref/1) ; relative to the start of the reference animation 
             ]
         ](
             start-v: start-v + ref-ofs
@@ -124,23 +122,24 @@ context [
             ref-ofs: 0
             delay-v: 0.0
             st: none
-            clear ani-bl
+            ani-bl: copy to block! effect 
+			;probe ani-bl
         )
     ]
     
-    dur: [['duration set d number!] (dur-v: d append ani-bl compose [dur: (d)])]
+    dur: [['duration set d number!] (dur-v: d ani-bl/dur: d)]
     
-    delay: [['delay set dl number!](delay-v: dl append ani-bl compose [delay: (dl)])]
+    delay: [['delay set dl number!](delay-v: dl ani-bl/delay: dl)]
     ; ease should be able to accept user-defined functions as well!
-    ease: [['ease set e any-word!](append ani-bl compose [ease: (e)])]
+    ease: [['ease set e any-word!](ani-bl/ease: e)]
     
     from-value: [set v2 word! | value (v2: scaled)]
     
     from: [
         ['from p1: [[set v1 keep word!] | value keep (scaled) (v1: scaled)]
          'to p2: from-value] (    
-            append ani-bl compose [val1: (v1)]
-            append ani-bl compose [val2: (v2)]
+            ani-bl/val1: v1
+            ani-bl/val2: v2
             cur-effect: make effect ani-bl
             trgt: to-path reduce [to-word cur-target val-ofs]
             cur-effect/start: start-v
@@ -155,8 +154,8 @@ context [
     from-fx: [
         ['from p1: from-value 'to p2: from-value] (   
             val-ofs: val-ofs + 1
-            append ani-bl compose [val1: (p1/1)]
-            append ani-bl compose [val2: (p2/1)]
+            ani-bl/val1: p1/1
+            ani-bl/val2: p2/1
             cur-effect: make effect ani-bl
             cur-effect/start: start-v
             start-v: start-v + delay-v
@@ -164,9 +163,7 @@ context [
             from-count: from-count + 1
         )
     ]
-    
-    from-text: [
-    ]
+     
     
     param: [
         'parameter
@@ -177,45 +174,111 @@ context [
     word: [                             ; Draw commands and markers for them
         opt set user-target set-word!
         p: word! (                
-               val-ofs: 1
-               val-idx: 1
-               target: p/1
-               cur-target: any [user-target rejoin [p/1 cur-idx: cur-idx + 1]]
-               if find [image font linear radial diamond pattern bitmap] p/1 [val-ofs: val-ofs + 1]
-               user-target: none
-           )
-           :p keep (to-set-word cur-target)
-           keep word!
+            val-ofs: 1
+            val-idx: 1
+            target: p/1
+            cur-target: any [user-target rejoin [p/1 cur-idx: cur-idx + 1]]
+            if find [image font linear radial diamond pattern bitmap] p/1 [val-ofs: val-ofs + 1]
+            user-target: none
+        )
+        :p keep (to-set-word cur-target)
+        keep word!
     ]
+    
+    adjust: func [
+        txt  "target text object"
+        n    "index of the text to adjust"
+        mode "scale origin"
+    ][
+       sc-p: select [     ; scale adjustments
+            top-left:     0x0
+            top:          0x0 
+            top-right:    2x0 
+            left:         0x0 
+            center:       1x1 
+            right:        2x0 
+            bottom-left:  0x2 
+            bottom:       0x2 
+            bottom-right: 2x2 
+        ] mode
+        sc-p * txt/:n/3 / 2
+    ]
+    
+    scale-text-fx: func [
+        txt-obj
+        v1
+        v2
+        time
+    ][
+        probe v1
+        probe v2
+        txt: text-data/(txt-obj/id)/2
+        mode: text-data/(txt-obj/id)/4/from
+        repeat n length? txt [
+           ; if v1/1 <> v1/2 [
+                ani-bl/val1: v1/1
+                ani-bl/val2: v1/2
+                ani-bl/start: txt/:n/5 + time
+                cur-effect: make effect ani-bl
+                cur-target: to-path reduce [to-word rejoin [t-obj/id "-" n] 5 2]
+                put timeline to-string rejoin [cur-target cur-idx] reduce [cur-target cur-effect]
+                from-count: from-count + 1
+            ;]    
+            
+            ;if v2/1 <> v2/2 [
+                ani-bl/val1: v2/1
+                ani-bl/val2: v2/2
+                ani-bl/start: txt/:n/5 + time
+                cur-effect: make effect ani-bl
+                cur-target: to-path reduce [to-word rejoin [t-obj/id "-" n] 5 3]
+                put timeline to-string rejoin [cur-target cur-idx] reduce [cur-target cur-effect]
+                from-count: from-count + 1
+            ;]        
+            
+            ; compensate the scaling offset with translation                
+            either v1/1 <= v1/2 [
+                ani-bl/val1: txt/:n/2 + adjust txt n mode
+                ani-bl/val2: txt/:n/2
+            ][
+                ani-bl/val1: txt/:n/2
+                ani-bl/val2: txt/:n/2 + adjust txt n mode
+            ]
+             
+            cur-effect: make effect ani-bl
+            cur-target: to-path reduce [to-word rejoin [t-obj/id "-" n] 4]
+            put timeline to-string rejoin [cur-target cur-idx] reduce [cur-target cur-effect]
+        ]
+        cur-idx: cur-idx + 1 
+    ]
+    
+	; WIP
+    text-color: func [
+        txt-obj
+        v1
+        v2 
+    ][
+    ]
+   
+    from-text: [['from set v1 value 'to set v2 value] | set v1 value (v2: v1)]
+    
     
     text-fx: [
         'text-fx
         [set txt-w word! | object!] (
             t-obj: get txt-w
-            fx-data: init-text-fx t-obj/id t-obj
-            text-fx-id: text-fx-id + 1
+            unless text-data/(t-obj/id) [
+                fx-data: init-text-fx t-obj/id t-obj
+                text-fx-id: text-fx-id + 1
+            ]    
         )
         keep (fx-data)
         any [
-            opt ['text-rotate    [value | from-text]]
-            opt ['text-scale   2 [value | from-text]]
-            ( ; crude test
-             sv: 0.0 
-             ci: 0
-             repeat n length? text-data/(t-obj/id)/2 [
-                ani-bl/val1: 0.0
-                ani-bl/val2: 1.0
-                cur-effect: make effect ani-bl
-                cur-effect/start: sv
-                sv: sv + 0.01
-                ci: ci + 1
-                cur-target: to-path reduce [to-word rejoin [t-obj/id "-"n] 5]
-                put timeline to-string cur-target reduce [cur-target cur-effect]
-                ] 
-            )
+            opt ['text-rotate [from-text | value]]
+            opt [['text-scale from-text (val1: reduce [v1 v2]) from-text (val2: reduce [v1 v2])]
+            (scale-text-fx t-obj val1 val2 start-v)]
             opt ['text-translate [value | from-text]]
             opt ['text-skew    2 [value | from-text]]
-            opt ['text-color     [value | from-text]]
+            opt ['text-color from-text (val1: reduce [v1 v2])] (text-color t-obj val1 val2)
         ]    
     ]
     
@@ -237,8 +300,8 @@ context [
                     param
                   | text-fx
                   | word                                ; Draw command
-                    opt keep [not 'from not 'to word!] (val-ofs: val-ofs + 1 val-idx: val-idx + 1)  ; word parameter, like font or image value
-                    any [[from | value keep (scaled) ](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]             ; parameters, incl. animated ones
+                    opt keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)  ; word parameter, like font or image value
+                    any [[from | value keep (scaled) ](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]  ; parameters, incl. animated ones
                   | into anim-rule                      ; block 
                 ]                                      
               
@@ -377,7 +440,7 @@ ease-in-out-bounce: func [x][
 tween: function [
     {Interpolates a value between value1 and value2 at time t
     in the stretch start .. start + duration using easing function ease}
-    target   [word! any-path!]          {the word or path to set}
+    target   [word! any-path!]      {the word or path to set}
     val1     [number! pair! tuple!] {Value to interpolate from}
     val2     [number! pair! tuple!] {Value to interpolate to}
     start    [float!]               {Start of the time period}
@@ -582,36 +645,46 @@ init-text-fx: function [
     id     [any-word!]
     t-spec [block!]
 ][
-    t-obj: make text-effect t-spec
-    chunks: split-text t-obj/text t-obj/font t-obj/mode
-    starts: collect [
-        st: t-obj/start
-        repeat n length? chunks [
-            keep st
-            st: round/to st + t-obj/delay 0.01
-       ]
-    ]
-    ; if rand [random starts]
-    repeat n length? chunks [
-        fnt-name: rejoin [id "-" n]
-        insert chunks/:n fnt-name
-        append chunks/:n reduce [starts/:n t-obj/dur]
-    ]
-        
-    put text-data id compose/deep [chunks: [(chunks)]]
-    
-    collect [
-        foreach item chunks [
-            fnt-name: to-word rejoin [item/1 "-fnt"]
-            set fnt-name copy t-obj/font
-            fnt-id: to set-word! item/1
-            p: as-pair item/2/x * t-obj/sp-x item/2/y * t-obj/sp-y
-            keep compose/deep [
-                (fnt-id) font (fnt-name)
-                transform 0.0 0.0 1.0 (p) [text 0x0 (item/4)]
-            ]
+    either not text-data/:id [        ;init
+        t-obj: make text-effect t-spec
+        chunks: split-text t-obj/text t-obj/font t-obj/mode
+        starts: collect [
+            st: t-obj/start
+            repeat n length? chunks [
+                keep st
+                st: round/to st + t-obj/delay 0.01
+           ]
         ]
-    ] 
+        
+        random starts
+        
+        repeat n length? chunks [
+            fnt-name: rejoin [id "-" n]
+            insert chunks/:n fnt-name
+            append chunks/:n reduce [starts/:n t-obj/dur]
+        ]
+            
+        ;put text-data id compose/deep [chunks: [(chunks)]]
+        put text-data id compose/deep [chunks: [(chunks)] effect: (t-obj) ]
+    
+        collect [
+            foreach item chunks [
+                fnt-name: to-word rejoin [item/1 "-fnt"]
+                set fnt-name copy t-obj/font
+                fnt-id: to set-word! item/1
+                p: as-pair item/2/x * t-obj/sp-x item/2/y * t-obj/sp-y
+                keep compose/deep [
+                    (fnt-id) font (fnt-name)
+                    translate (p) [
+                        scale 0.0 0.0 
+                        rotate 0.0 (item/3 / 2)
+                        text 0x0 (item/4)
+                    ]
+                ]
+            ]
+        ] 
+    ][  ; animate
+    ]    
    
 ]
 
@@ -668,6 +741,7 @@ fade-in-text: function [
     ]
 ]
 
+; obsolete - will be removed
 scale-text: function [
     {Animate the text so that each component scales up
     from zero to its actual size, centered about itself}
@@ -694,7 +768,7 @@ scale-text: function [
             name: to-set-word rejoin [id "_" n]
             insert chunks/:n name
         ]
-        put text-data id compose/deep [effect: (t-obj)chunks: [(chunks)]]
+        put text-data id compose/deep [effect: (t-obj) chunks: [(chunks)]]
         
         collect [
             n: 0
@@ -731,9 +805,9 @@ scale-text: function [
             
             tr1: t-obj/posXY + p + (d * sc-p)
             tr2: t-obj/posXY + p
-            tween 'name/2     tr1    tr2 item/5 item/6 t :ease-in-out-elastic ; translate
-            tween 'name/3/2   sc-x   1.0 item/5 item/6 t :ease-in-out-elastic ; scale
-            tween 'name/3/3   sc-y   1.0 item/5 item/6 t :ease-in-out-elastic
+            tween 'name/2   tr1  tr2 item/5 item/6 t :ease-in-out-elastic ; translate
+            tween 'name/3/2 sc-x 1.0 item/5 item/6 t :ease-in-out-elastic ; scale
+            tween 'name/3/3 sc-y 1.0 item/5 item/6 t :ease-in-out-elastic
         ]
     ]    
 ]
