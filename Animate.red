@@ -17,6 +17,7 @@ effect: make object! [
     dur:   1.0          ; duration of the animation
     delay: 0.0          ; delay between successive subanimations
     ease:  func [x][x]  ; easing function
+    ease:  none  ; easing function
     loop:  'once        ; repetition of the effect in time
     fns:   copy []      ; a block of callback functions ; arity 2: [id time]
 ]
@@ -37,6 +38,7 @@ text-effect: make object! [
     start: 1.0      ; starting time
     dur:   1.0      ; duration 
     delay: 0.1      ; delay between subanimations
+    random: false
 ]
 
 process-timeline: has [
@@ -51,13 +53,15 @@ process-timeline: has [
 ]
 
 context [
-    ani-bl: copy to block! effect
+    ;ani-bl: copy to block! effect ; ???
+    ani-bl: copy []
     draw-block: make block! 1000
     cur-effect: make block! 20
     delay-v: 0.0
     start-v: 0.0
     start-anchor: 0
     dur-v: 0.0
+    ease-v: none
     ref-ofs: 0.0
     val-ofs: 1
     val-idx: 1
@@ -72,6 +76,19 @@ context [
     from-count: 0
     text-fx-id: 1
     t-fx: none
+    
+    make-effect: does [
+        ani-bl: copy/part to-block effect 10
+        append ani-bl [ease: none] 
+        ani-bl/val1: v1
+        ani-bl/val2: v2
+        ani-bl/start: start-v
+        ani-bl/dur: any [dur-v 1.0]
+        ani-bl/delay: any [delay-v 0.0]
+        ani-bl/ease: any [:ease-v to get-word! "ease-linear"]
+        ;ani-bl/ease: either none? ease-v [to get-word! "ease-linear" ][:ease-v]
+        ;probe ani-bl
+    ]    
     
     do-not-scale: [
         [circle 3]
@@ -100,8 +117,8 @@ context [
     
     start: [
         ['start opt set st number! (
-		    ani-bl: copy to block! effect
             start-v: any [st 0.0]
+            ease-v: none
             if cur-ref [   ; reg the previously named entry
                put time-map cur-ref reduce [start-anchor dur-v delay-v from-count]  
                probe time-map/:cur-ref 
@@ -122,28 +139,31 @@ context [
             ref-ofs: 0
             delay-v: 0.0
             st: none
-            ani-bl: copy to block! effect 
-			;probe ani-bl
+            ;ani-bl: copy []
+            ;probe ani-bl
         )
     ]
     
-    dur: [['duration set d number!] (dur-v: d ani-bl/dur: d)]
+    dur: [['duration set d number!] (dur-v: d)] ; ani-bl/dur: d)]
     
-    delay: [['delay set dl number!](delay-v: dl ani-bl/delay: dl)]
+    delay: [['delay set dl number!](delay-v: dl)] ; ani-bl/delay: dl)]
     ; ease should be able to accept user-defined functions as well!
-    ease: [['ease set e any-word!](ani-bl/ease: e)]
+    ease: ['ease set ease-v any-word!];(ani-bl/ease: :ease-v)]
     
     from-value: [set v2 word! | value (v2: scaled)]
     
     from: [
         ['from p1: [[set v1 keep word!] | value keep (scaled) (v1: scaled)]
-         'to p2: from-value] (    
-            ani-bl/val1: v1
-            ani-bl/val2: v2
+         'to p2: from-value] (
+            print ["Ease before make-effect" mold ease-v]
+            make-effect
+            print ["Ease after make-effect" mold :ani-bl/ease]
+            ;print mold ani-bl
             cur-effect: make effect ani-bl
             trgt: to-path reduce [to-word cur-target val-ofs]
             cur-effect/start: start-v
             start-v: start-v + delay-v
+            ;probe cur-effect
             put timeline to-string trgt reduce [trgt cur-effect]
             from-count: from-count + 1
          )
@@ -216,6 +236,7 @@ context [
         mode: text-data/(txt-obj/id)/4/from
         repeat n length? txt [
            ; if v1/1 <> v1/2 [
+                make-effect            
                 ani-bl/val1: v1/1
                 ani-bl/val2: v1/2
                 ani-bl/start: txt/:n/5 + time
@@ -236,14 +257,13 @@ context [
             ;]        
             
             ; compensate the scaling offset with translation                
-            either v1/1 <= v1/2 [
-                ani-bl/val1: txt/:n/2 + adjust txt n mode
-                ani-bl/val2: txt/:n/2
-            ][
+            ani-bl/val1: txt/:n/2 + adjust txt n mode
+            ani-bl/val2: txt/:n/2
+            if any [v1/1 > v1/2 v2/1 > v2/2] [
                 ani-bl/val1: txt/:n/2
                 ani-bl/val2: txt/:n/2 + adjust txt n mode
             ]
-             
+            
             cur-effect: make effect ani-bl
             cur-target: to-path reduce [to-word rejoin [t-obj/id "-" n] 4]
             put timeline to-string rejoin [cur-target cur-idx] reduce [cur-target cur-effect]
@@ -251,7 +271,7 @@ context [
         cur-idx: cur-idx + 1 
     ]
     
-	; WIP
+    ; WIP
     text-color: func [
         txt-obj
         v1
@@ -289,7 +309,7 @@ context [
         opt dur
         opt delay
         opt ease
-        opt 'loop
+        ;opt 'loop
     ]
     
     anim-rule: [
@@ -319,7 +339,7 @@ context [
         draw-block: parse spec anim-rule
         insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1]
         ;probe draw-block
-        probe ani-bl
+        ;probe ani-bl
         target/draw: draw-block
        
         actors: make block! 10
@@ -656,7 +676,7 @@ init-text-fx: function [
            ]
         ]
         
-        random starts
+        if t-obj/random [random starts]
         
         repeat n length? chunks [
             fnt-name: rejoin [id "-" n]
@@ -664,7 +684,6 @@ init-text-fx: function [
             append chunks/:n reduce [starts/:n t-obj/dur]
         ]
             
-        ;put text-data id compose/deep [chunks: [(chunks)]]
         put text-data id compose/deep [chunks: [(chunks)] effect: (t-obj) ]
     
         collect [
