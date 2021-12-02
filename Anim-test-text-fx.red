@@ -6,27 +6,35 @@ Red [
 
 #include %Animate.red
 
-fnt1: make font! [name: "Verdana" style: 'bold size: 120 color: 50.50.25.0]
+fnt1: make font! [name: "Brush Script MT" size: 28 color: 25.12.5.255]
 
-text1: {Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-In elementum orci neque, eu tincidunt nisl finibus sit amet.
-Ut consectetur pellentesque consectetur. Donec non vulputate
-nisi. Pellentesque sodales ut justo at commodo.}
+text1: {Red’s ambitious goal is to build the world’s
+first full-stack language, a language you can
+use from system programming tasks,
+up to high-level scripting through DSL.}
 
-txt-bl: compose [id: 'test text: (text1) font: (fnt1) posXY: 10x50
-                 mode: 'words from: 'left random: off]
+txt-bl: compose [
+    id: 'test text: (text1) font: (fnt1)
+    posXY: 20x20 sp-y: 0.75
+    mode: 'chars from: 'center random: off
+]
 
-anim-block: [
-    pen white fill-pen sky line-width 2
-    box 0x0 600x200
-    st: start 0.0 duration 0.3 delay 0.1 ease :ease-in-out-cubic
-    text-fx txt-bl text-scale from 0.0 to 1.0 1.0 ;from 1.0 to 1.0
-    bx: start when st ends duration 2.0 ;ease :ease-linear
-    fill-pen 255.255.105.30
-    box 0x0 from 0x200 to 600x200
-    start 1.0 after st ends duration 0.3 delay 0.1 ease :ease-in-out-cubic
-    text-fx txt-bl text-scale from 1.0 to 0.0 1.0 ;from 1.0 to 1.0
-    text-color from 50.50.25.0 to 255.255.255.0
+anim-block: compose [
+    pen white fill-pen (papaya + 0.20.30) line-width 2 box 0x0 720x200
+    
+    st: start 2.0 duration 0.3 delay 0.02 ease :ease-in-out-cubic
+    text-fx txt-bl text-scale from 4.0 to 1.0  from 4.0 to 1.0
+    text-color from 25.12.5.255 to 25.12.5.0
+    
+    sc: start 2 after st ends duration 0.3 delay 0.05 ease :ease-in-out-cubic
+    text-fx txt-bl text-color from 25.12.5.0 to 255.255.255.235
+    
+    fade: start 0.1 after sc starts duration 0.3 delay 0.05 ease :ease-in-out-cubic
+    text-fx txt-bl text-color from 255.255.255.235 to 25.12.5.0
+    
+    start 12.0 duration 0.3 delay 0.02 ease :ease-in-out-quad
+    text-fx txt-bl text-move 0x-20 
+    text-color from 25.12.5.0 to 25.12.5.255
 ]
 
 view [
