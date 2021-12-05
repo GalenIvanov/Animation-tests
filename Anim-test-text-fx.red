@@ -16,24 +16,24 @@ up to high-level scripting through DSL.}
 txt-bl: compose [
     id: 'test text: (text1) font: (fnt1)
     posXY: 20x20 sp-y: 0.75
-    mode: 'chars from: 'center random: off
+    mode: 'chars from: 'center
 ]
 
 anim-block: compose [
     pen white fill-pen (papaya + 0.20.30) line-width 2 box 0x0 720x200
     
-    st: start 2.0 duration 0.3 delay 0.02 ease :ease-in-out-cubic
-    text-fx txt-bl text-scale from 4.0 to 1.0  from 4.0 to 1.0
+    st: start 1.0 duration 0.3 delay 0.02 ease :ease-in-out-cubic
+    text-fx txt-bl text-scale from 4.0 to 1.0 from 4.0 to 1.0
     text-color from 25.12.5.255 to 25.12.5.0
     
-    sc: start 2 after st ends duration 0.3 delay 0.05 ease :ease-in-out-cubic
-    text-fx txt-bl text-color from 25.12.5.0 to 255.255.255.235
+    sc: start 1.0 after st ends duration 0.3 delay 0.03 ease :ease-in-out-cubic
+    text-fx txt-bl text-color from 25.12.5.0 to 255.255.255.0
     
-    fade: start 0.1 after sc starts duration 0.3 delay 0.05 ease :ease-in-out-cubic
-    text-fx txt-bl text-color from 255.255.255.235 to 25.12.5.0
+    fade: start 0.1 after sc starts duration 0.3 delay 0.03 ease :ease-in-out-cubic
+    text-fx txt-bl text-color from 255.255.255.0 to 25.12.5.0
     
-    start 12.0 duration 0.3 delay 0.02 ease :ease-in-out-quad
-    text-fx txt-bl text-move 0x-20 
+    start when fade ends duration 0.3 delay 0.02 ease :ease-in-out-quad
+    text-fx txt-bl text-move -100x0 
     text-color from 25.12.5.0 to 25.12.5.255
 ]
 
