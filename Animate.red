@@ -17,7 +17,7 @@ effect: make object! [
     dur:   1.0          ; duration of the animation
     delay: 0.0          ; delay between successive subanimations
     ease:  func [x][x]  ; easing function
-    ease:  none  ; easing function
+    ease:  none         ; easing function
     loop:  'once        ; repetition of the effect in time
     fns:   copy []      ; a block of callback functions ; arity 2: [id time]
 ]
@@ -47,13 +47,42 @@ process-timeline: has [
     t: to float! difference now/precise st-time
     foreach [_ val] timeline [
         w: val/2
-        tween val/1 w/val1 w/val2 w/start w/dur t :w/ease
+        if w/val1 <> w/val2 [ tween val/1 w/val1 w/val2 w/start w/dur t :w/ease]
     ]
     ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
 ]
 
+particle: context [
+    speck: [[circle 0x0 10]] ; a default template for particles
+
+    particle-base: make object! [
+        number:  10             ; how many particles
+        emitter: [0x0 10x10]      ; where particles are born - a box
+        velocity: 0x5           ; x and y components of particle's speed.  
+        scatter:  [-2x0 2x2]     ; variation of velocity
+        shapes: copy speck      ; a block of blocks (shapes to be used to render particles)
+        lifespan: 1.0           ; life of a particle in seconds
+        forces: copy []         ; what forces affect the particles motion - a block of functions
+    ]
+    
+    create-particle: func [
+        proto [object!]
+    ][
+        pos: proto/emitter/1 + random proto/emitter/2 - proto/emitter/1
+        vel: proto/velocity + proto/scatter/1 + random proto/scatter/2 - proto/scatter/1
+        birth: round/to random proto/lifespan 0.001
+        shape: random/only proto/shapes
+        reduce [pos vel birth shape]
+    ]
+    
+    init-particles: func [
+        proto [object!]     ; a copy of particle-base
+    ][
+        collect [loop proto/number [keep/only create-particle proto]]
+    ]
+]
+
 context [
-    ;ani-bl: copy to block! effect ; ???
     ani-bl: copy []
     draw-block: make block! 1000
     cur-effect: make block! 20
@@ -145,7 +174,7 @@ context [
             ]
         ](
             t-offs: any [t-offs 0.0] 
-            start-v: t-offs * time-dir + ref-ofs + start-v 
+            start-v: t-offs * time-dir + ref-ofs + start-v
             start-anchor: start-v
             cur-ref: time-id
             ref-ofs: 0
@@ -170,8 +199,7 @@ context [
             cur-effect: make effect ani-bl
             trgt: to-path reduce [to-word cur-target val-ofs]
             cur-effect/start: start-v
-            ;start-v: start-v + delay-v
-            print ["current ani-bl" form ani-bl]
+            ;print ["current ani-bl" form ani-bl]
             put timeline to-string trgt reduce [trgt cur-effect]
             start-v: start-v + delay-v
             from-count: from-count + 1
@@ -267,9 +295,11 @@ context [
         sp-x: text-data/(txt-obj/id)/4/sp-x
         sp-y: text-data/(txt-obj/id)/4/sp-y
         
+        dly: delay-v / text-data/(txt-obj/id)/4/delay
+        
         repeat n length? txt [
             make-effect            
-            ani-bl/start: txt/:n/5 + time
+            ani-bl/start: txt/:n/5 * dly + time
             
             cur-target: to-path reduce [to-word rejoin [t-obj/id "-" n] 5 2]
             ani-bl/val1: v1/1
@@ -295,6 +325,10 @@ context [
             if (scale-from <> 'center) and to logic! any [v1/1 > v1/2 v2/1 > v2/2] [
                 ani-bl/val2: scale-origin txt n mode sc-t
             ]
+            
+            ;txt/:n/2: ani-bl/val2
+            ;txt/:n/3/x: to integer! txt/:n/3/x * sc-t
+            ;txt/:n/3/y: to integer! txt/:n/3/y * sc-t
              
             cur-effect: make effect ani-bl
             cur-target: to-path reduce [to-word rejoin [t-obj/id "-" n] 4]
@@ -310,10 +344,11 @@ context [
         time
     ][
         txt: text-data/(txt-obj/id)
+        dly: delay-v / text-data/(txt-obj/id)/4/delay
         n: 1
         foreach item txt/chunks [
             make-effect            
-            ani-bl/start: txt/2/:n/5 + time
+            ani-bl/start: item/5 * dly + time
             ani-bl/val1: v1
             ani-bl/val2: v2
             cur-effect: make effect ani-bl
@@ -331,13 +366,14 @@ context [
         time
     ][
         txt: text-data/(txt-obj/id)
-        n: 1
         val: val * 10
+        dly: delay-v / text-data/(txt-obj/id)/4/delay
+        n: 1
         foreach item txt/chunks [
             make-effect            
-            ani-bl/start: txt/2/:n/5 + time
-            ani-bl/val1: txt/2/:n/2
-            ani-bl/val2: txt/2/:n/2 + val
+            ani-bl/start: item/5 * dly + time
+            ani-bl/val1: item/2
+            ani-bl/val2: item/2 + val
             cur-effect: make effect ani-bl
             cur-target: to-path reduce [to-word rejoin [t-obj/id "-" n] 4]
             put timeline to-string rejoin [cur-target cur-idx] reduce [cur-target cur-effect]
@@ -738,9 +774,12 @@ init-text-fx: function [
     t-spec [block!]
     delay  [number!]
 ][
+    
     either not text-data/:id [        ;init
         t-obj: make text-effect t-spec
-        t-obj/font/size: t-obj/font/size * 10  ; puscale the provided font!
+        t-obj/delay: delay
+        ; t-obj/dur: duration
+        t-obj/font/size: t-obj/font/size * 10  ; upscale the provided font!
         chunks: split-text t-obj/text t-obj/font t-obj/mode t-obj/posXY t-obj/sp-x t-obj/sp-y ; too many args
         starts: collect [
             st: 0.0
