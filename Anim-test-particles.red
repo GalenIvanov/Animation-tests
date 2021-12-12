@@ -6,4 +6,10 @@ Red [
 
 #include %Animate.red
 
-probe particle/init-particles particle/particle-base
+d: particle/init-particles 'test particle/particle-base
+
+
+view [
+    base black 400x400 draw (d) rate 60
+    on-time [particle/update-particles 'test]
+]
