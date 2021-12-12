@@ -26,6 +26,8 @@ timeline: make map! 100 ; the timeline of effects key: value <- id: effect
                         ; there should be a record for each face!
 time-map: make map! 100 ; for the named animations
 
+particles-map: make map! 10 ; 
+
 text-effect: make object! [
     id: none        ; 
     text: ""        ; text to render   
@@ -53,33 +55,66 @@ process-timeline: has [
 ]
 
 particle: context [
-    speck: [[circle 0x0 10]] ; a default template for particles
+    speck: [[fill-pen 200.200.255.50 circle 0x0 30]] ; a default template for particles
 
     particle-base: make object! [
-        number:  10             ; how many particles
-        emitter: [0x0 10x10]      ; where particles are born - a box
-        velocity: 0x5           ; x and y components of particle's speed.  
-        scatter:  [-2x0 2x2]     ; variation of velocity
-        shapes: copy speck      ; a block of blocks (shapes to be used to render particles)
-        lifespan: 1.0           ; life of a particle in seconds
-        forces: copy []         ; what forces affect the particles motion - a block of functions
+        number:  1500                ; how many particles
+        emitter: [10x-100 390x0]     ; where particles are born - a box
+        velocity: [0.0 1.0]          ; x and y components of particle's speed.  
+        scatter: [1.2 2.5 1.5 4.55]  ; variation of velocity [left rigth up down]
+        shapes: copy speck           ; a block of blocks (shapes to be used to render particles)
+        lifespan: 1.0                ; life of a particle in seconds
+        forces: copy []              ; what forces affect the particles motion - a block of functions
     ]
     
     create-particle: func [
         proto [object!]
     ][
-        pos: proto/emitter/1 + random proto/emitter/2 - proto/emitter/1
-        vel: proto/velocity + proto/scatter/1 + random proto/scatter/2 - proto/scatter/1
+        pos: (proto/emitter/1 + random proto/emitter/2 - proto/emitter/1) * 10x10
+
+        p-v: proto/velocity
+        p-s: proto/scatter
+        vel-x: p-v/1 - p-s/1 + random p-s/1 + p-s/2
+        vel-y: p-v/2 - p-s/3 + random p-s/3 + p-s/4
+        
         birth: round/to random proto/lifespan 0.001
         shape: random/only proto/shapes
-        reduce [pos vel birth shape]
+        reduce [reduce [pos/x + vel-x pos/y + vel-y] reduce [vel-x vel-y] birth shape]
     ]
     
     init-particles: func [
+        id    [word!]       ; particles set identifier
         proto [object!]     ; a copy of particle-base
+        /local particles particles-draw
     ][
-        collect [loop proto/number [keep/only create-particle proto]]
+        particles-draw: make block! proto/number * 4
+        append particles-draw compose [(to-set-word id) scale 0.1 0.1 translate 0x0]
+        
+        particles: collect [loop proto/number [keep/only create-particle proto]]
+        put particles-map id particles
+        
+        append/only particles-draw collect [
+            repeat i length? particles [
+                keep compose/deep [
+                    (to-set-word rejoin [id "-" i])
+                    translate (as-pair round particles/:i/1/1 particles/:i/1/2)
+                    [(particles/:i/4)]
+                ]
+            ]
+        ] 
     ]
+    
+    update-particles: func [
+        id [word!]
+    ][
+        p: particles-map/:id
+        repeat i length? p [
+            p/:i/1/1: p/:i/1/1 + p/:i/2/1
+            p/:i/1/2: p/:i/1/2 + p/:i/2/2
+            poke get to-word rejoin [id "-" i] 2 as-pair round p/:i/1/1 round p/:i/1/2
+        ]
+    ]
+
 ]
 
 context [
