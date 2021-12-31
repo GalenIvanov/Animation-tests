@@ -54,15 +54,29 @@ process-timeline: has [
     ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
 ]
 
+
 particle: context [
-    speck: [[fill-pen 200.200.255.50 circle 0x0 30]] ; a default template for particles
+    speck: [  ; a default template for particles
+	    [fill-pen 240.240.255.30 circle 0x0 5]
+		[fill-pen 240.240.255.40 circle 0x0 8]
+		[fill-pen 220.230.255.50 circle 0x0 10]
+		[fill-pen 220.230.255.50 circle 0x0 15]
+		[fill-pen 220.230.255.80 circle 0x0 20]
+		[fill-pen 220.230.255.120 circle 0x0 30]
+		[fill-pen 220.230.255.180 circle 0x0 40]
+		;[
+		;	scale 37.0 37.0 
+		;	font snowflake
+		;	text 0x0 "❅"  ;"❄"
+		;]
+	] 
 
     particle-base: make object! [
-        number:  1500                ; how many particles
-        emitter: [10x-100 390x0]     ; where particles are born - a box
-        velocity: [0.0 1.0]          ; x and y components of particle's speed.  
-        scatter: [1.2 2.5 1.5 4.55]  ; variation of velocity [left rigth up down]
-        shapes: copy speck           ; a block of blocks (shapes to be used to render particles)
+        number:  1200                ; how many particles
+        emitter: [0x0 600x400]     ; where particles are born - a box
+        velocity: [0.0 2.0]          ; x and y components of particle's speed.  
+        scatter: [1.2 2.5 0.0 24.55]  ; variation of velocity [left rigth up down]
+        shapes: copy compose speck           ; a block of blocks (shapes to be used to render particles)
         lifespan: 1.0                ; life of a particle in seconds
         forces: copy []              ; what forces affect the particles motion - a block of functions
     ]
@@ -98,7 +112,7 @@ particle: context [
                 keep compose/deep [
                     (to-set-word rejoin [id "-" i])
                     translate (as-pair round particles/:i/1/1 particles/:i/1/2)
-                    [(particles/:i/4)]
+                    [scale (s: 0.5 + random 1.5) (s)(particles/:i/4)]
                 ]
             ]
         ] 
@@ -109,8 +123,8 @@ particle: context [
     ][
         p: particles-map/:id
         repeat i length? p [
-            p/:i/1/1: p/:i/1/1 + p/:i/2/1
-            p/:i/1/2: p/:i/1/2 + p/:i/2/2
+            p/:i/1/1: p/:i/1/1 + p/:i/2/1 + 5.0 - random 10.0
+            p/:i/1/2: (p/:i/1/2 + p/:i/2/2 + 5.0 - random 10.0) % 4050
             poke get to-word rejoin [id "-" i] 2 as-pair round p/:i/1/1 round p/:i/1/2
         ]
     ]
