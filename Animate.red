@@ -57,65 +57,63 @@ process-timeline: has [
 
 particle: context [
     speck: [  ; a default template for particles
-	    [fill-pen 240.240.255.30 circle 0x0 5]
-		[fill-pen 240.240.255.40 circle 0x0 8]
-		[fill-pen 220.230.255.50 circle 0x0 10]
-		[fill-pen 220.230.255.50 circle 0x0 15]
-		[fill-pen 220.230.255.80 circle 0x0 20]
-		[fill-pen 220.230.255.120 circle 0x0 30]
-		[fill-pen 220.230.255.180 circle 0x0 40]
-		;[
-		;	scale 37.0 37.0 
-		;	font snowflake
-		;	text 0x0 "❅"  ;"❄"
-		;]
-	] 
+        [fill-pen 240.240.255.30 circle 0x0 5]
+    ] 
 
     particle-base: make object! [
-        number:  1200                ; how many particles
-        emitter: [0x0 600x400]     ; where particles are born - a box
-        velocity: [0.0 2.0]          ; x and y components of particle's speed.  
-        scatter: [1.2 2.5 0.0 24.55]  ; variation of velocity [left rigth up down]
-        shapes: copy compose speck           ; a block of blocks (shapes to be used to render particles)
-        lifespan: 1.0                ; life of a particle in seconds
-        forces: copy []              ; what forces affect the particles motion - a block of functions
+        number:    100                ; how many particles
+        emitter:   [0x100 200x100]  ; where particles are born - a box
+        direction: 90.0               ; degrees
+        dir-rnd:   0.0                ; random spread of direction, symmetric
+        speed:     1.0                ; particle base speed
+        speed-rnd: 0.2                ; randomization of speed for each particle, always added
+        shapes:    speck              ; a block of draw blocks (shapes to be used to render particles)
+        lifespan:  1.0                ; life of a particle in seconds
+        forces:    copy []            ; what forces affect the particles motion - a block of functions
     ]
     
     create-particle: func [
+        {Instantiates a sinlge particle using the prototype}
         proto [object!]
+        /local
+            pos {position}
+            d   {direction}
+            s   {speed}
     ][
         pos: (proto/emitter/1 + random proto/emitter/2 - proto/emitter/1) * 10x10
-
-        p-v: proto/velocity
-        p-s: proto/scatter
-        vel-x: p-v/1 - p-s/1 + random p-s/1 + p-s/2
-        vel-y: p-v/2 - p-s/3 + random p-s/3 + p-s/4
-        
+        d: proto/direction - (proto/dir-rnd / 2.0) + random to-float proto/dir-rnd
+        s: proto/speed + random to-float proto/speed-rnd 
         birth: round/to random proto/lifespan 0.001
         shape: random/only proto/shapes
-        reduce [reduce [pos/x + vel-x pos/y + vel-y] reduce [vel-x vel-y] birth shape]
+        reduce [pos d s shape birth]
     ]
     
     init-particles: func [
+        {Populates a named set of particles using a prototype}
         id    [word!]       ; particles set identifier
         proto [object!]     ; a copy of particle-base
-        /local particles particles-draw
+        /local
+            particles 
+            particles-draw
+            d n p
     ][
-        particles-draw: make block! proto/number * 4
+        particles: make block! 2 * n: proto/number
+        append particles reduce [
+            'spec copy []
+            'draw copy []
+        ]
+        particles-draw: make block! 3 * n: proto/number  ; translate 0x0 particle
+        ; scale 0.1 0.1 must be removed after incorporating into the dialect!
         append particles-draw compose [(to-set-word id) scale 0.1 0.1 translate 0x0]
         
-        particles: collect [loop proto/number [keep/only create-particle proto]]
-        put particles-map id particles
-        
-        append/only particles-draw collect [
-            repeat i length? particles [
-                keep compose/deep [
-                    (to-set-word rejoin [id "-" i])
-                    translate (as-pair round particles/:i/1/1 particles/:i/1/2)
-                    [scale (s: 0.5 + random 1.5) (s)(particles/:i/4)]
-                ]
-            ]
-        ] 
+        loop n [
+            p:  create-particle proto
+            append/only particles/spec p
+            d: compose/deep [translate (p/1) [(p/4)]]
+            append particles/draw d
+        ]
+        put particles-map id particles        
+        head append/only particles-draw particles/draw
     ]
     
     update-particles: func [
