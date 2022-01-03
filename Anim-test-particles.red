@@ -6,7 +6,25 @@ Red [
 
 #include %Animate.red
 
-d: particle/init-particles 'test particle/particle-base
+ball: [
+    [
+        fill-pen 240.240.255.30
+        line-width 5
+        pen yello
+        circle 0x0 15
+    ]   
+]
+
+snow: copy [
+        number:  10                ; how many particles
+        emitter: [50x10 550x2100]     ; where particles are born - a box
+        velocity: [0.1 2.0]          ; x and y components of particle's speed.  
+        scatter: [1.2 2.5 0.0 14.55]  ; variation of velocity [left rigth up down]
+        shapes: ball              ; a block of blocks (shapes to be used to render particles)
+    ]
+
+probe d: particle/init-particles 'test make particle/particle-base snow
+
 
 tree: [
     shape [
@@ -56,7 +74,7 @@ view [
     base 600x400 draw (d) rate 120
     on-time [
 		tm: to float! difference now/precise st-time
-	    particle/update-particles 'test
+	    ;particle/update-particles 'test
         tween 'st-txt  10000 0 1.5 6.0 tm :ease-in-out-quint
         text-along-curve 'text1 st-txt / 10000.0
 	]
