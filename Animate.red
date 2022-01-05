@@ -54,6 +54,39 @@ process-timeline: has [
     ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
 ]
 
+;-----------------------------------------------
+; predifined forces effecting particles motion
+; always take 2 rguments: direction and speed
+; should return a block [dir speed]
+;-----------------------------------------------
+drag: func [dir speed][
+    speed: speed * 0.99
+    reduce [dir speed]
+]
+
+gravity: func [dir speed][
+    vx: speed * cosine dir
+    vy: speed *   sine dir
+    vy: vy + 0.2  ; coef
+    dir: arctangent2 vy vx
+    speed: sqrt vx * vx + (vy * vy)
+    reduce [dir speed]
+]
+
+;----------------------------------------------------------------
+; particle respawn functions
+; expects 2 arguments - x and y coordinates of the particle
+; checks if the particle should be respawned and returns
+; the condition, as well as the (new) x and y
+;----------------------------------------------------------------
+from-top: func [x y /local c][
+    c: false
+    if y > 400 [
+       c: true
+       y: 0
+    ]
+    reduce [c x y]
+]
 
 particle: context [
     speck: [  ; a default template for particles
@@ -61,37 +94,41 @@ particle: context [
     ] 
 
     particle-base: make object! [
-        number:    100                ; how many particles
-        emitter:   [0x100 200x100]  ; where particles are born - a box
-        direction: 90.0               ; degrees
-        dir-rnd:   0.0                ; random spread of direction, symmetric
-        speed:     1.0                ; particle base speed
-        speed-rnd: 0.2                ; randomization of speed for each particle, always added
-        shapes:    speck              ; a block of draw blocks (shapes to be used to render particles)
-        lifespan:  1.0                ; life of a particle in seconds
-        forces:    copy []            ; what forces affect the particles motion - a block of functions
+        number:    100                  ; how many particles
+        emitter:   [0x100 200x100]      ; where particles are born - a box
+        direction: 90.0                 ; degrees
+        dir-rnd:   0.0                  ; random spread of direction, symmetric
+        speed:     1.0                  ; particle base speed
+        speed-rnd: 0.2                  ; randomization of speed for each particle, always added
+        shapes:    speck                ; a block of draw blocks (shapes to be used to render particles)
+        forces:    copy []              ; what forces affect the particles motion - a block of words
+        limits:    :from-top            ; when to respawn the praticle 
     ]
     
     create-particle: func [
         {Instantiates a sinlge particle using the prototype}
         proto [object!]
         /local
-            pos {position}
+            em
+            px  {position x}
+            py  {position y}
             d   {direction}
             s   {speed}
     ][
-        pos: (proto/emitter/1 + random proto/emitter/2 - proto/emitter/1) * 10x10
+        em: proto/emitter
+        px: (em/1/x + random 1.0 * em/2/x - em/1/x) * 10.0
+        py: (em/1/y + random 1.0 * em/2/y - em/1/y) * 10.0
         d: proto/direction - (proto/dir-rnd / 2.0) + random to-float proto/dir-rnd
-        s: proto/speed + random to-float proto/speed-rnd 
-        birth: round/to random proto/lifespan 0.001
+        s: proto/speed + random to-float proto/speed-rnd
+        ; I need to automatically scale the linear dimensions of shape x10 for subpixe; precision         
         shape: random/only proto/shapes
-        reduce [pos d s shape birth]
+        reduce [px py d s shape]
     ]
     
     init-particles: func [
         {Populates a named set of particles using a prototype}
         id    [word!]       ; particles set identifier
-        proto [object!]     ; a copy of particle-base
+        proto [object!]     ; particle-base object
         /local
             particles 
             particles-draw
@@ -99,17 +136,19 @@ particle: context [
     ][
         particles: make block! 2 * n: proto/number
         append particles reduce [
+            'proto proto
             'spec copy []
             'draw copy []
         ]
         particles-draw: make block! 3 * n: proto/number  ; translate 0x0 particle
-        ; scale 0.1 0.1 must be removed after incorporating into the dialect!
-        append particles-draw compose [(to-set-word id) scale 0.1 0.1 translate 0x0]
+        ; id can used to remove the entire block followinf translate
+        ;append particles-draw compose [(to-set-word id) scale 0.1 0.1 translate 0x0]
+        append particles-draw compose [(to-set-word id) translate 0x0]
         
         loop n [
             p:  create-particle proto
             append/only particles/spec p
-            d: compose/deep [translate (p/1) [(p/4)]]
+            d: compose/deep [translate (as-pair to-integer p/1 to-integer p/2) [(p/5)]]
             append particles/draw d
         ]
         put particles-map id particles        
@@ -118,12 +157,36 @@ particle: context [
     
     update-particles: func [
         id [word!]
+        /local
+           respawn i p ps pd tmp new-p
     ][
-        p: particles-map/:id
-        repeat i length? p [
-            p/:i/1/1: p/:i/1/1 + p/:i/2/1 + 5.0 - random 10.0
-            p/:i/1/2: (p/:i/1/2 + p/:i/2/2 + 5.0 - random 10.0) % 4050
-            poke get to-word rejoin [id "-" i] 2 as-pair round p/:i/1/1 round p/:i/1/2
+        respawn: :particles-map/:id/proto/limits
+        ps: particles-map/:id/spec
+        pd: particles-map/:id/draw
+        repeat i length? ps [
+            p: ps/:i
+            ; check of it's time to respawn the particle
+            tmp: respawn 0.1 * p/1 0.1 * p/2
+            if tmp/1 [
+                new-p: create-particle particles-map/:id/proto
+                p/1: 10.0 * tmp/2
+                p/2: 10.0 * tmp/3
+                p/3: new-p/3
+                p/4: new-p/4
+            ]
+            
+            ; apply forces - they make changes in place
+            foreach force particles-map/:id/proto/forces [
+                tmp: do reduce [:force p/3 p/4]
+                p/3: tmp/1
+                p/4: tmp/2
+            ]
+            
+            ; calculate new position
+            p/1:  p/4 * (cosine p/3) + p/1  
+            p/2:  p/4 * (  sine p/3) + p/2
+            pd/2: as-pair to-integer p/1 to-integer p/2
+            pd: skip pd 3
         ]
     ]
 
