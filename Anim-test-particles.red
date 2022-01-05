@@ -6,76 +6,86 @@ Red [
 
 #include %Animate.red
 
+random/seed now
+
 ball: [
     [
-        fill-pen 240.240.255.30
-        line-width 5
-        pen yello
-        circle 0x0 15
+        fill-pen 235.240.255.50
+        pen transparent
+        circle 0x0 25
     ]   
 ]
 
-snow: copy [
-        number:  10                ; how many particles
-        emitter: [50x10 550x2100]     ; where particles are born - a box
-        velocity: [0.1 2.0]          ; x and y components of particle's speed.  
-        scatter: [1.2 2.5 0.0 14.55]  ; variation of velocity [left rigth up down]
-        shapes: ball              ; a block of blocks (shapes to be used to render particles)
-    ]
+dot: [[box 0x0 20x20] [rotate 45.0 [box 0x0 40x40]] ]
 
-probe d: particle/init-particles 'test make particle/particle-base snow
-
-
-tree: [
-    shape [
-        line 20x20 5x20 35x50 10x50 50x90 -50x90 -10x50 -35x50 -5x20 -20x20 0x0
-	]
+random-dir: func [dir speed][
+    dir: dir + 0.1 - random 0.2
+    return reduce [dir speed]
 ]
 
-fnt: make font! [style: 'bold size: 250 color: gold]
-fnt2: make font! [style: 'bold size: 250 color: black]
-text1: "Happy New Year 2022! Happy reducing!"
-bez-test: make block! 200
-tt: 0.0
-lim: 100
-bez-pts: [200x1000 2300x-200 2800x600 3200x2200 5800x500]  ; 10x for sub-pixel precision
+box-limit: func [x y /local c][
+    c: false
+    if y > 350 [
+        c: true
+        y: 50
+    ]    
+ reduce [c x y]
+]
 
-st-txt: 10000
-draw-bl: make block! 10 * length? text1
-draw-bl: text-along-curve/init 'text1 1.0 text1 fnt bez-pts 0.98
+circle-limit: func [x y /local c][
+    c: false 
+    if 120 < sqrt x - 300 ** 2 + (y - 200 ** 2) [
+        c: true
+        x: 300.0
+        y: 200.0
+    ]
+    reduce [c x y]
+] 
+
+snow: compose [
+    number:    200                    ; how many particles
+    emitter:   [50x50 150x350]      ; where particles are born - a box
+    direction: 90.0                    ; degrees
+    dir-rnd:   3.0                  ; random spread of direction, symmetric
+    speed:     10.0                   ; particle base speed
+    speed-rnd: 5.0      
+    shapes:    ball                   ; a block of blocks (shapes to be used to render particles)
+    forces:    []
+    limits:   :box-limit
+]
+
+sphere: [
+    number:    300                    ; how many particles
+    emitter:   [300x200 300x200]      ; where particles are born - a box
+    direction: 0.0                    ; degrees
+    dir-rnd:   360.0                  ; random spread of direction, symmetric
+    speed:     5.0                   ; particle base speed
+    speed-rnd: 10.0      
+    shapes:    dot                   ; a block of blocks (shapes to be used to render particles)
+    forces:    [random-dir gravity]
+    limits:   :circle-limit
+]
+    
+d: particle/init-particles 'test make particle/particle-base snow
 
 insert d compose/deep [
-    fill-pen 80.80.150
+    fill-pen black
     pen transparent
-	box 0x0 600x400
-    fill-pen 220.220.235
-	shape [
-	    move -10x250
-	    curv  120x200 300x270 500x300 700x320
-		line 700x510 -10x410 -10x350
-	]
-	translate 70x220 [scale 0.25 0.25 (tree)]
-	translate 90x205 [scale 0.40 0.40 (tree)]
-	translate 110x210 [scale 0.35 0.35 (tree)]
-	translate 130x220 [scale 0.25 0.25 (tree)]
-	translate 170x220 [scale 0.25 0.25 (tree)]
-	
-	fill-pen 245.245.255
-	shape [
-	    move -10x300
-	    curv -10x350 280x280 550x320 700x320
-		line 750x510 -10x410 -10x350
-	]
-	
-	translate 0x80  [font fnt2 (draw-bl) translate -3x-3 font fnt (draw-bl)]
-]	
+    box 0x0 600x400
+    scale 0.1 0.1
+]    
+
+append d [fill-pen papaya]
+append d particle/init-particles 'sphere make particle/particle-base sphere
+append d [fill-pen transparent pen papaya line-width 100 circle 3000x2000 1250]
+
+print "start"
 
 view [
     base 600x400 draw (d) rate 120
     on-time [
-		tm: to float! difference now/precise st-time
-	    ;particle/update-particles 'test
-        tween 'st-txt  10000 0 1.5 6.0 tm :ease-in-out-quint
-        text-along-curve 'text1 st-txt / 10000.0
-	]
+        tm: to float! difference now/precise st-time
+        particle/update-particles 'test
+        particle/update-particles 'sphere
+    ]
 ]
