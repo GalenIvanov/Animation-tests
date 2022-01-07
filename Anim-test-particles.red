@@ -4,6 +4,11 @@ Red [
     needs: view
 ]
 
+; To do
+; Auotmatic scaling of the particle draw blocks
+; Start and duration of the particle effect to be inferred from the 
+; last defined animation, if any (otherwise the particles won't move)
+
 #include %Animate.red
 
 random/seed now
@@ -12,80 +17,115 @@ ball: [
     [
         fill-pen 235.240.255.50
         pen transparent
-        circle 0x0 25
-    ]   
+        circle 0x0 20  ; should be scaled automatically!!!
+    ]
+    [
+        fill-pen 235.250.255.80
+        pen transparent
+        circle 0x0 40
+    ]       
 ]
 
-dot: [[box 0x0 20x20] [rotate 45.0 [box 0x0 40x40]] ]
+sparks: [
+    [box 0x0 20x20]
+    [fill-pen 255.120.10 rotate 45.0 box 0x0 40x40]
+]
+
+ship: [[rotate -45.0 [text 0x0 "рџљЂ"]]]
 
 random-dir: func [dir speed][
     dir: dir + 0.1 - random 0.2
-    return reduce [dir speed]
+    reduce [dir speed]
 ]
 
-box-limit: func [x y /local c][
-    c: false
-    if y > 350 [
-        c: true
-        y: 50
-    ]    
- reduce [c x y]
+wind: func [dir speed][
+    if dir < 135 [dir: 135 + dir / 2.0]
+    dir: dir + 2.0 - random 4.0
+    reduce [dir speed]
 ]
 
-circle-limit: func [x y /local c][
-    c: false 
-    if 120 < sqrt x - 300 ** 2 + (y - 200 ** 2) [
-        c: true
-        x: 300.0
-        y: 200.0
+accel: func [dir speed][
+    speed: speed * 1.05
+    reduce [dir speed]
+]
+
+; A possible improvement would be to replace the function with two blocks:
+; condition [x > 550 y < 60]
+; update: [x: 455.0 + random 90.0 y: 340.0]
+
+motes: compose [
+    number:     200
+    emitter:    [50x50 150x360]
+    direction:  90.0    
+    dir-rnd:    0.0
+    speed:      10.0
+    speed-rnd:  5.0
+    shapes:     ball
+    forces:     [wind]
+    limits:     [y > 350 x < 50]
+    new-coords: [
+        t: random 4
+        either t < 3 [
+            x: 150.0
+            y: 50.0 + random 300.0
+        ][
+            x: 50 + random 100.0
+            y: 50.0
+        ]
     ]
-    reduce [c x y]
-] 
-
-snow: compose [
-    number:    200                    ; how many particles
-    emitter:   [50x50 150x350]      ; where particles are born - a box
-    direction: 90.0                    ; degrees
-    dir-rnd:   3.0                  ; random spread of direction, symmetric
-    speed:     10.0                   ; particle base speed
-    speed-rnd: 5.0      
-    shapes:    ball                   ; a block of blocks (shapes to be used to render particles)
-    forces:    []
-    limits:   :box-limit
 ]
 
-sphere: [
-    number:    300                    ; how many particles
-    emitter:   [300x200 300x200]      ; where particles are born - a box
-    direction: 0.0                    ; degrees
-    dir-rnd:   360.0                  ; random spread of direction, symmetric
-    speed:     5.0                   ; particle base speed
-    speed-rnd: 10.0      
-    shapes:    dot                   ; a block of blocks (shapes to be used to render particles)
-    forces:    [random-dir gravity]
-    limits:   :circle-limit
+burst: [
+    number:     300                
+    emitter:    [300x200 300x200]  
+    direction:  0.0                
+    dir-rnd:    360.0              
+    speed:      10.0                
+    speed-rnd:  10.0      
+    shapes:     sparks             
+    forces:     [gravity]
+    limits:     [120.0 < sqrt x - 300.0 ** 2 + (y - 200.0 ** 2)]
+    new-coords: [x: 300.0 y: 200.0]
 ]
-    
-d: particle/init-particles 'test make particle/particle-base snow
 
-insert d compose/deep [
+rocket: [
+    number:     20
+    emitter:    [450x50 540x320]
+    direction:  270.0
+    dir-rnd:    0.0
+    speed:      8.0
+    speed-rnd:  8.0
+    shapes:     ship
+    forces:     []
+    limits:     [x > 550 y < 60]
+    new-coords: [x: 455.0 + random 90.0 y: 340.0]
+]
+
+fnt: make font! [size: 150 color: sky]
+
+d: [
     fill-pen black
     pen transparent
     box 0x0 600x400
-    scale 0.1 0.1
-]    
+    
+    start 0.0 duration 1.0 
+    
+    particles test motes
+    line-width 8 pen white fill-pen transparent
+    box 50x50 from 50x50 to 150x350
 
-append d [fill-pen papaya]
-append d particle/init-particles 'sphere make particle/particle-base sphere
-append d [fill-pen transparent pen papaya line-width 100 circle 3000x2000 1250]
+    pen transparent fill-pen papaya
+    particles vulcano burst
+    fill-pen transparent pen papaya  circle 300x200 125
+    
+    font fnt
+    particles fleet rocket 
+    pen sky box 460x50 570x350
+]
 
 print "start"
 
 view [
-    base 600x400 draw (d) rate 120
-    on-time [
-        tm: to float! difference now/precise st-time
-        particle/update-particles 'test
-        particle/update-particles 'sphere
-    ]
+    canvas: base 600x400 rate 120
+    on-create [parse-anim d face]
 ]
