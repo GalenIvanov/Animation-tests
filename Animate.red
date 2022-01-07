@@ -51,6 +51,9 @@ process-timeline: has [
         w: val/2
         if w/val1 <> w/val2 [ tween val/1 w/val1 w/val2 w/start w/dur t :w/ease]
     ]
+    
+    foreach [key _] particles-map [particle/update-particles to-word key]
+    
     ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
 ]
 
@@ -101,8 +104,10 @@ particle: context [
         speed:     1.0                  ; particle base speed
         speed-rnd: 0.2                  ; randomization of speed for each particle, always added
         shapes:    speck                ; a block of draw blocks (shapes to be used to render particles)
-        forces:    copy []              ; what forces affect the particles motion - a block of words
-        limits:    :from-top            ; when to respawn the praticle 
+        forces:    []                   ; what forces affect the particles motion - a block of words
+        ;limits:    :from-top            ; when to respawn the praticle 
+        limits:    []                   ; conditions for particle to be respawned - based on coordinates 
+        new-coords: []                  ; where reposition the particle
     ]
     
     create-particle: func [
@@ -116,11 +121,10 @@ particle: context [
             s   {speed}
     ][
         em: proto/emitter
-        px: (em/1/x + random 1.0 * em/2/x - em/1/x) * 10.0
-        py: (em/1/y + random 1.0 * em/2/y - em/1/y) * 10.0
+        px: (em/1/x + random 1.0 * em/2/x - em/1/x) * 10.0 
+        py: (em/1/y + random 1.0 * em/2/y - em/1/y) * 10.0 
         d: proto/direction - (proto/dir-rnd / 2.0) + random to-float proto/dir-rnd
         s: proto/speed + random to-float proto/speed-rnd
-        ; I need to automatically scale the linear dimensions of shape x10 for subpixe; precision         
         shape: random/only proto/shapes
         reduce [px py d s shape]
     ]
@@ -135,14 +139,25 @@ particle: context [
             d n p
     ][
         particles: make block! 2 * n: proto/number
+        f-body: 
         append particles reduce [
             'proto proto
+            'respawn make function! compose/deep [
+                [x y]
+                [
+                    c: false
+                    if any [(proto/limits)] [
+                        c: true
+                         (proto/new-coords)
+                    ] 
+                    reduce [c x y]
+                ]
+            ]
             'spec copy []
             'draw copy []
         ]
-        particles-draw: make block! 3 * n: proto/number  ; translate 0x0 particle
+        particles-draw: make block! 3 * n: proto/number 
         ; id can used to remove the entire block followinf translate
-        ;append particles-draw compose [(to-set-word id) scale 0.1 0.1 translate 0x0]
         append particles-draw compose [(to-set-word id) translate 0x0]
         
         loop n [
@@ -160,13 +175,14 @@ particle: context [
         /local
            respawn i p ps pd tmp new-p
     ][
-        respawn: :particles-map/:id/proto/limits
         ps: particles-map/:id/spec
         pd: particles-map/:id/draw
+        
         repeat i length? ps [
             p: ps/:i
             ; check of it's time to respawn the particle
-            tmp: respawn 0.1 * p/1 0.1 * p/2
+            ;tmp: particles-map/:id/proto/limits 0.1 * p/1 0.1 * p/2
+            tmp: particles-map/:id/respawn 0.1 * p/1 0.1 * p/2
             if tmp/1 [
                 new-p: create-particle particles-map/:id/proto
                 p/1: 10.0 * tmp/2
@@ -231,7 +247,6 @@ context [
     ]    
     
     do-not-scale: [
-        [circle 3]
         [circle 4]
         [circle 5] 
         [arc 4]
@@ -330,8 +345,7 @@ context [
             from-count: from-count + 1
         )
     ]
-     
-    
+         
     param: [
         'parameter
         set t [path! | word!] (cur-target: t cur-idx: cur-idx + 1)
@@ -350,6 +364,15 @@ context [
         )
         :p keep (to-set-word cur-target)
         keep word!
+    ]
+    
+    particles: [
+        'particles
+        set p-id word!
+        set p-proto word! 
+        ;keep ([scale 10.0 10.0])
+        keep (particle/init-particles p-id make particle/particle-base get p-proto)
+        ;keep ([scale 0.1 0.1])
     ]
     
     scale-origin:  func [
@@ -528,6 +551,7 @@ context [
                 opt [
                     param
                   | text-fx
+                  | particles
                   | word                                ; Draw command
                     opt keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)  ; word parameter, like font or image value
                     any [[from | value keep (scaled) ](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]  ; parameters, incl. animated ones
