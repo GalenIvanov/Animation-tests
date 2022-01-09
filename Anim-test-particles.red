@@ -4,11 +4,6 @@ Red [
     needs: view
 ]
 
-; To do
-; Auotmatic scaling of the particle draw blocks
-; Start and duration of the particle effect to be inferred from the 
-; last defined animation, if any (otherwise the particles won't move)
-
 #include %Animate.red
 
 random/seed now
@@ -17,21 +12,21 @@ ball: [
     [
         fill-pen 235.240.255.50
         pen transparent
-        circle 0x0 20  ; should be scaled automatically!!!
+        circle 0x0 2  ; should be scaled automatically!!!
     ]
     [
         fill-pen 235.250.255.80
         pen transparent
-        circle 0x0 40
+        circle 0x0 4
     ]       
 ]
 
 sparks: [
-    [box 0x0 20x20]
-    [fill-pen 255.120.10 rotate 45.0 box 0x0 40x40]
+    [box 0x0 2x2]
+    [fill-pen 255.120.10 rotate 45.0 box 0x0 4x4]
 ]
 
-ship: [[rotate -45.0 [text 0x0 "рџљЂ"]]]
+ship: compose/deep [[rotate -45.0 [text 0x0 (form to-char 128640)]]]  ; U+1F680  
 
 random-dir: func [dir speed][
     dir: dir + 0.1 - random 0.2
@@ -49,13 +44,9 @@ accel: func [dir speed][
     reduce [dir speed]
 ]
 
-; A possible improvement would be to replace the function with two blocks:
-; condition [x > 550 y < 60]
-; update: [x: 455.0 + random 90.0 y: 340.0]
-
 motes: compose [
     number:     200
-    emitter:    [50x50 150x360]
+    emitter:    [50x50 150x350]
     direction:  90.0    
     dir-rnd:    0.0
     speed:      10.0
@@ -101,24 +92,27 @@ rocket: [
     new-coords: [x: 455.0 + random 90.0 y: 340.0]
 ]
 
-fnt: make font! [size: 150 color: sky]
+fnt: make font! [size: 15]
 
 d: [
     fill-pen black
     pen transparent
     box 0x0 600x400
     
-    start 0.0 duration 1.0 
+    start 1.0 duration 5.0 delay 2.0
     
     particles test motes
     line-width 8 pen white fill-pen transparent
-    box 50x50 from 50x50 to 150x350
+    box 50x50 150x350
+    
 
+    start 3.0 duration 5.0 
     pen transparent fill-pen papaya
     particles vulcano burst
     fill-pen transparent pen papaya  circle 300x200 125
     
     font fnt
+    start 5.0 duration 5.0 
     particles fleet rocket 
     pen sky box 460x50 570x350
 ]
