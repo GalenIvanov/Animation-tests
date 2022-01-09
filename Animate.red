@@ -26,7 +26,9 @@ timeline: make map! 100 ; the timeline of effects key: value <- id: effect
                         ; there should be a record for each face!
 time-map: make map! 100 ; for the named animations
 
-particles-map: make map! 10 ; 
+particles-map: make map! 10
+
+scaled-fonts: copy []
 
 text-effect: make object! [
     id: none        ; 
@@ -52,7 +54,12 @@ process-timeline: has [
         if w/val1 <> w/val2 [ tween val/1 w/val1 w/val2 w/start w/dur t :w/ease]
     ]
     
-    foreach [key _] particles-map [particle/update-particles to-word key]
+    foreach [key effect] particles-map [
+        proto: effect/proto
+        if all [t >= proto/start t <= (proto/start + proto/duration)] [
+            particle/update-particles to-word key
+        ]    
+    ]
     
     ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
 ]
@@ -98,6 +105,8 @@ particle: context [
 
     particle-base: make object! [
         number:    100                  ; how many particles
+        start:     1.0                  ; start time of the effect
+        duration:  5.0                  ; duration of the effect
         emitter:   [0x100 200x100]      ; where particles are born - a box
         direction: 90.0                 ; degrees
         dir-rnd:   0.0                  ; random spread of direction, symmetric
@@ -105,7 +114,6 @@ particle: context [
         speed-rnd: 0.2                  ; randomization of speed for each particle, always added
         shapes:    speck                ; a block of draw blocks (shapes to be used to render particles)
         forces:    []                   ; what forces affect the particles motion - a block of words
-        ;limits:    :from-top            ; when to respawn the praticle 
         limits:    []                   ; conditions for particle to be respawned - based on coordinates 
         new-coords: []                  ; where reposition the particle
     ]
@@ -125,7 +133,7 @@ particle: context [
         py: (em/1/y + random 1.0 * em/2/y - em/1/y) * 10.0 
         d: proto/direction - (proto/dir-rnd / 2.0) + random to-float proto/dir-rnd
         s: proto/speed + random to-float proto/speed-rnd
-        shape: random/only proto/shapes
+        shape: autoscale random/only proto/shapes
         reduce [px py d s shape]
     ]
     
@@ -205,7 +213,47 @@ particle: context [
             pd: skip pd 3
         ]
     ]
+]
 
+do-not-scale: [
+    ; this list might not be complete!         
+    [circle 4]
+    [circle 5] 
+    [arc 4]
+    [arc 5]
+    [rotate 2]          ; assuming no 'pen or 'fill-pen !!!   
+    [scale 2]           ; assuming no 'pen or 'fill-pen !!!
+    [scale 3]           ; assuming no 'pen or 'fill-pen !!!
+    [skew 2]
+    [skew 3]
+    [transform 2]       ; rotate  - I need to account for <center> where necessary
+    [transform 3]       ; scale x - I need to account for <center> where necessary
+    [transform 4]       ; scale y - I need to account for <center> where necessary
+]
+
+autoscale: function [
+    {Multiplies by 10 the linear sizes of draw block commands
+    Used for subpixel precision,
+    Returns a modified block}
+    src [block!]
+][
+    dest: copy/deep src
+    target: none
+    offs: 1
+    k: 1
+    parse dest rule: [
+        any [
+            p: set target word! (offs: 1 k: 1)    
+          | p: change [[integer! | float! | pair!] (offs: offs + 1)]
+            (
+                if not find/only do-not-scale reduce[target offs] [k: 10]
+                p/1 * k
+            )
+          | tuple! | string!
+          | into rule             
+        ] 
+    ]
+    dest
 ]
 
 context [
@@ -245,21 +293,6 @@ context [
         ani-bl/delay: any [delay-v 0.0]
         ani-bl/ease: any [:ease-v to get-word! "ease-linear"]
     ]    
-    
-    do-not-scale: [
-        [circle 4]
-        [circle 5] 
-        [arc 4]
-        [arc 5]
-        [rotate 2]          ; assuming no 'pen or 'fill-pen !!!   
-        [scale 2]           ; assuming no 'pen or 'fill-pen !!!
-        [scale 3]           ; assuming no 'pen or 'fill-pen !!!
-        [skew 2]
-        [skew 3]
-        [transform 2]       ; rotate  - I need to account for <center> where necessary
-        [transform 3]       ; scale x - I need to account for <center> where necessary
-        [transform 4]       ; scale y - I need to account for <center> where necessary
-    ]
     
     rescale: does [
         if all [
@@ -361,6 +394,13 @@ context [
             cur-target: any [user-target rejoin [p/1 cur-idx: cur-idx + 1]]
             if find [image font linear radial diamond pattern bitmap] p/1 [val-ofs: val-ofs + 1]
             user-target: none
+            if 'font = target [
+                fnt: get p/2
+                unless find scaled-fonts p/2 [
+                    fnt/size: fnt/size * 10
+                    append scaled-fonts p/2
+                ]    
+            ]
         )
         :p keep (to-set-word cur-target)
         keep word!
@@ -370,8 +410,14 @@ context [
         'particles
         set p-id word!
         set p-proto word! 
-        ;keep ([scale 10.0 10.0])
-        keep (particle/init-particles p-id make particle/particle-base get p-proto)
+        (
+           prt: get p-proto
+           append prt compose [start: (start-v)]
+           append prt compose [duartion: (dur-v)]
+           start-v: start-v + delay-v
+           from-count: from-count + 1
+        )
+        keep (particle/init-particles p-id make particle/particle-base prt)
         ;keep ([scale 0.1 0.1])
     ]
     
