@@ -6,8 +6,6 @@ Red [
 
 #include %Animate.red
 
-random/seed now
-
 ball: [
     [
         fill-pen 235.240.255.50
@@ -71,7 +69,7 @@ burst: [
 
 rocket: [
     number:     20
-    emitter:    [450x50 540x320]
+    emitter:    [450x60 540x320]
     direction:  270.0
     dir-rnd:    0.0
     speed:      8.0
