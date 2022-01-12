@@ -28,19 +28,9 @@ sparks: [
 
 ship: compose/deep [[rotate -45.0 [text 0x0 (form to-char 128640)]]]  ; U+1F680  
 
-random-dir: func [dir speed][
-    dir: dir + 0.1 - random 0.2
-    reduce [dir speed]
-]
-
 wind: func [dir speed][
     if dir < 135 [dir: 135 + dir / 2.0]
     dir: dir + 2.0 - random 4.0
-    reduce [dir speed]
-]
-
-accel: func [dir speed][
-    speed: speed * 1.05
     reduce [dir speed]
 ]
 
@@ -87,7 +77,6 @@ rocket: [
     speed:      8.0
     speed-rnd:  8.0
     shapes:     ship
-    forces:     []
     limits:     [x > 550 y < 60]
     new-coords: [x: 455.0 + random 90.0 y: 340.0]
 ]
@@ -105,19 +94,14 @@ d: [
     line-width 8 pen white fill-pen transparent
     box 50x50 150x350
     
-
-    start 3.0 duration 5.0 
     pen transparent fill-pen papaya
     particles vulcano burst
     fill-pen transparent pen papaya  circle 300x200 125
     
     font fnt
-    start 5.0 duration 5.0 
     particles fleet rocket 
     pen sky box 460x50 570x350
 ]
-
-print "start"
 
 view [
     canvas: base 600x400 rate 120
