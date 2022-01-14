@@ -28,6 +28,8 @@ time-map: make map! 100 ; for the named animations
 
 particles-map: make map! 10
 
+curve-fx-text-map: make map! 10
+
 scaled-fonts: copy []
 
 text-effect: make object! [
@@ -46,9 +48,11 @@ text-effect: make object! [
 ]
 
 process-timeline: has [
-    t target w
+    t target v w
 ][
     t: to float! difference now/precise st-time
+    time-t/data: t    
+    
     foreach [_ val] timeline [
         w: val/2
         if w/val1 <> w/val2 [ tween val/1 w/val1 w/val2 w/start w/dur t :w/ease]
@@ -58,6 +62,13 @@ process-timeline: has [
         proto: effect/proto
         if all [t >= proto/start t <= (proto/start + proto/duration)] [
             particle/update-particles to-word key
+        ]    
+    ]
+    target: 0.0
+    foreach [key v] curve-fx-text-map [
+        if all [t >= v/2 t <= (v/2 + v/3 * 1.01)] [
+            tween 'target v/4 v/5 v/2 v/3 t get v/6  ;ease as arg !!!
+            text-along-curve v/1 target ;/ 10000.0
         ]    
     ]
     
@@ -418,7 +429,35 @@ context [
            from-count: from-count + 1
         )
         keep (particle/init-particles p-id make particle/particle-base prt)
-        ;keep ([scale 0.1 0.1])
+    ]
+    
+    curve-fx: [
+        [
+            'curve-fx
+            (
+                v2: none
+                ease-v: any [:ease-v to get-word! "ease-linear"]
+            )
+            set crv-id word! (probe crv-id)
+            set crv-data [block! | word!] 
+            [
+                ['from set v1 float! 'to set v2 float!]
+                | set v1 float! (probe v1)
+            ]    
+        ]
+        (
+            if word? s-crv-data: select args: get crv-data 'data [s-crv-data: get s-crv-data]
+            ; check if we are to move text or draw block along curve
+            either string? s-crv-data [
+                draw-data: text-along-curve/init crv-id v1 s-crv-data get args/font get args/curve args/space-x
+            ][  ; block
+            ]
+            v2: any [v2 v1]
+            put curve-fx-text-map crv-id reduce[crv-id start-v dur-v v1 v2 :ease-v]
+            start-v: start-v + delay-v
+            from-count: from-count + 1
+        )
+        keep (draw-data)
     ]
     
     scale-origin:  func [
@@ -598,6 +637,7 @@ context [
                     param
                   | text-fx
                   | particles
+                  | curve-fx
                   | word                                ; Draw command
                     opt keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)  ; word parameter, like font or image value
                     any [[from | value keep (scaled) ](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]  ; parameters, incl. animated ones
@@ -1000,6 +1040,7 @@ init-text-fx: function [
    
 ]
 
+; obsolete?
 fade-in-text: function [
     {Animates the text so that each element (character, word or line)
     fades-in from transparent to the chosen font color}
@@ -1060,15 +1101,16 @@ text-along-curve: function [
     /init          
         txt  [string!] {text to be displayed}  
         fnt  [object!] {font to use}
-        crv  [block!]  {point of the Bezier curve}  
+        pts  [block!]  {point of the Bezier curve}  
         spacing [number!] {multiplier for the space between the characters}
 ][
     either init [
         txt-ofs: char-offsets txt fnt
         len: last txt-ofs      ; text length
         txt-sz: 0x1 * text-box-size txt fnt  ; only the text height
-        bez-segs: bezier-lengths crv 500
-        
+        crv: copy pts
+        forall crv [crv/1: crv/1 * 10]
+        bez-segs: bezier-lengths crv 500  ; should it be an argument - for tuning performance / quality?
         put text-data id compose/deep [  ; the map of id's and objects 
             txt-ofs: [(txt-ofs)]
             len: (len)       
@@ -1079,7 +1121,6 @@ text-along-curve: function [
         ]    
         
         draw-buf: make block! 10 * length? txt
-        append draw-buf [scale 0.1 0.1]
 
         append/only draw-buf collect [
             repeat n length? txt [
@@ -1099,15 +1140,17 @@ text-along-curve: function [
         d: d0: 0x0
         obj: text-data/:id
         txt-ofs: obj/txt-ofs
-        len: obj/len
+        ;len: obj/len
         txt-sz: obj/txt-sz
         crv: obj/crv
         bez-segs: obj/bez-segs
+        len: last bez-segs
         spacing: obj/spacing
         
         repeat n length? txt-ofs [
             d: txt-ofs/:n - d0 + txt-sz / 2
-            u: d/x / len/x * spacing + tt
+            ;u: d/x / len * spacing + tt
+            u: d/x / len + tt
             ttt: bezier-lerp u bez-segs
             if ttt > 0.999 [break]
             
@@ -1120,7 +1163,7 @@ text-along-curve: function [
             change at get id-r 2 angle
             change at get id-r 3 d
             
-            tt: (to-float txt-ofs/:n/x / len/x * spacing) + t
+            tt: (to-float txt-ofs/:n/x / len * spacing) + t
             d0: txt-ofs/:n
         ]
     ]
