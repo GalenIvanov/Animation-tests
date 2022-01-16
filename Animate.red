@@ -6,7 +6,8 @@ Red [
 
 st-time: now/precise
 pascal: none
-text-data: make map! 100
+text-data: make map! 20
+draw-blocks-data: make map! 20 
 
 random/seed now
 
@@ -28,7 +29,7 @@ time-map: make map! 100 ; for the named animations
 
 particles-map: make map! 10
 
-curve-fx-text-map: make map! 10
+curve-fx-map: make map! 10
 
 scaled-fonts: copy []
 
@@ -65,11 +66,14 @@ process-timeline: has [
         ]    
     ]
     target: 0.0
-    foreach [key v] curve-fx-text-map [
+    foreach [key v] curve-fx-map [
         if all [t >= v/2 t <= (v/2 + v/3 * 1.01)] [
             tween 'target v/4 v/5 v/2 v/3 t get v/6  ;ease as arg !!!
-            text-along-curve v/1 target ;/ 10000.0
-        ]    
+            switch/default last v [
+                text  [text-along-curve v/1 target]
+                block [block-along-curve v/1 target]
+            ][print "Unsupported effect type - must be text or block"]
+        ]
     ]
     
     ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
@@ -446,14 +450,18 @@ context [
             ]    
         ]
         (
+            v2: any [v2 v1]
             if word? s-crv-data: select args: get crv-data 'data [s-crv-data: get s-crv-data]
             ; check if we are to move text or draw block along curve
             either string? s-crv-data [
                 draw-data: text-along-curve/init crv-id v1 s-crv-data get args/font get args/curve args/space-x
+                fx-type: 'text
             ][  ; block
+                draw-data: block-along-curve/init crv-id v1 s-crv-data get args/curve args/space-x
+                fx-type: 'block
             ]
-            v2: any [v2 v1]
-            put curve-fx-text-map crv-id reduce[crv-id start-v dur-v v1 v2 :ease-v]
+            put curve-fx-map crv-id reduce[crv-id start-v dur-v v1 v2 :ease-v fx-type]
+                        
             start-v: start-v + delay-v
             from-count: from-count + 1
         )
@@ -1165,6 +1173,67 @@ text-along-curve: function [
             
             tt: (to-float txt-ofs/:n/x / len * spacing) + t
             d0: txt-ofs/:n
+        ]
+    ]
+]
+
+block-along-curve: function [
+    {Flow a block of blocks of Draw commands along Bezier curve}
+    id       [word!]   {effect identificator}
+    t        [number!] {point on the curve} 
+    /init          
+        blocks  [block!]  {a block of blocks to be rendered}  
+        pts     [block!]  {point of the Bezier curve}  
+        spacing [number!] {linear distance between the blocks on the curve, pixels}
+][
+    either init [
+        crv: copy pts
+        forall crv [crv/1: crv/1 * 10]
+        bez-segs: bezier-lengths crv 500  ; should it be an argument - for tuning performance / quality?
+        
+        draw-buf: make block! 3 * length? blocks
+
+        draw-buf: collect [
+            foreach block blocks [
+                keep [translate 0x0]
+                keep/only compose/deep [
+                    translate 10000x0 [     ; outside the visible screen
+                        rotate 0 0x0
+                        (autoscale block)
+                    ]
+                ]
+            ]
+        ]
+        
+        put draw-blocks-data id compose/deep [  ; the map of id's and objects 
+            blocks: [(draw-buf)]
+            crv: [(crv)]            
+            bez-segs: [(bez-segs)]
+            spacing: (spacing)      ; could it be a block of integers?
+        ]    
+        
+        probe draw-buf
+    ][
+
+        tt: t        
+        d: 0
+        obj: draw-blocks-data/:id
+        crv: obj/crv
+        bez-segs: obj/bez-segs
+        len: last bez-segs
+        spacing: 10 * obj/spacing
+        
+        ; currently triggers an error when the shapes reach 0.0
+        
+        foreach [a b block] obj/blocks [
+            u: to-float d / len + t
+            ttt: bezier-lerp u bez-segs
+            if ttt > 0.999 [break]
+            
+            block/2: bezier-n crv ttt
+            block/3/2: round/to bezier-tangent crv ttt 0.01
+
+            d: d + spacing
         ]
     ]
 ]
