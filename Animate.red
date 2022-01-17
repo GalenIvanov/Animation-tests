@@ -52,7 +52,6 @@ process-timeline: has [
     t target v w
 ][
     t: to float! difference now/precise st-time
-    time-t/data: t    
     
     foreach [_ val] timeline [
         w: val/2
@@ -68,7 +67,8 @@ process-timeline: has [
     target: 0.0
     foreach [key v] curve-fx-map [
         if all [t >= v/2 t <= (v/2 + v/3 * 1.01)] [
-            tween 'target v/4 v/5 v/2 v/3 t get v/6  ;ease as arg !!!
+            tween 'target v/4 v/5 v/2 v/3 t get v/6
+            ;target: max 0.0 target
             switch/default last v [
                 text  [text-along-curve v/1 target]
                 block [block-along-curve v/1 target]
@@ -1148,7 +1148,6 @@ text-along-curve: function [
         d: d0: 0x0
         obj: text-data/:id
         txt-ofs: obj/txt-ofs
-        ;len: obj/len
         txt-sz: obj/txt-sz
         crv: obj/crv
         bez-segs: obj/bez-segs
@@ -1215,7 +1214,7 @@ block-along-curve: function [
         probe draw-buf
     ][
 
-        tt: t        
+        t: max t 0.005
         d: 0
         obj: draw-blocks-data/:id
         crv: obj/crv
@@ -1223,16 +1222,12 @@ block-along-curve: function [
         len: last bez-segs
         spacing: 10 * obj/spacing
         
-        ; currently triggers an error when the shapes reach 0.0
-        
         foreach [a b block] obj/blocks [
             u: to-float d / len + t
             ttt: bezier-lerp u bez-segs
-            if ttt > 0.999 [break]
-            
+            if any [ttt < 0.001 ttt > 0.999] [break]
             block/2: bezier-n crv ttt
             block/3/2: round/to bezier-tangent crv ttt 0.01
-
             d: d + spacing
         ]
     ]
