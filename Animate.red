@@ -156,6 +156,7 @@ particle: context [
         {Populates a named set of particles using a prototype}
         id    [word!]       ; particles set identifier
         proto [object!]     ; particle-base object
+        idx   [integer!]    ; unique identifier
         /local
             particles 
             particles-draw
@@ -189,7 +190,8 @@ particle: context [
             d: compose/deep [translate (as-pair to-integer p/1 to-integer p/2) [(p/5)]]
             append particles/draw d
         ]
-        put particles-map id particles        
+        ;put particles-map id particles        
+        put particles-map to-word rejoin [id "-" idx] particles
         head append/only particles-draw particles/draw
     ]
     
@@ -428,11 +430,11 @@ context [
         (
            prt: get p-proto
            append prt compose [start: (start-v)]
-           append prt compose [duartion: (dur-v)]
+           append prt compose [duration: (dur-v)]
            start-v: start-v + delay-v
            from-count: from-count + 1
         )
-        keep (particle/init-particles p-id make particle/particle-base prt)
+        keep (particle/init-particles p-id make particle/particle-base prt cur-idx)
     ]
     
     curve-fx: [
@@ -442,7 +444,7 @@ context [
                 v2: none
                 ease-v: any [:ease-v to get-word! "ease-linear"]
             )
-            set crv-id word! (probe crv-id)
+            set crv-id word! ;(probe crv-id)
             set crv-data [block! | word!] 
             [
                 ['from set v1 float! 'to set v2 float!]
@@ -460,8 +462,8 @@ context [
                 draw-data: block-along-curve/init crv-id v1 s-crv-data get args/curve args/space-x
                 fx-type: 'block
             ]
-            put curve-fx-map crv-id reduce[crv-id start-v dur-v v1 v2 :ease-v fx-type]
-                        
+            put curve-fx-map to-word rejoin [crv-id "-" cur-idx] reduce[crv-id start-v dur-v v1 v2 :ease-v fx-type]
+            cur-idx: cur-idx + 1            
             start-v: start-v + delay-v
             from-count: from-count + 1
         )
@@ -477,13 +479,13 @@ context [
        sc-p: select [     ; scale adjustments
             top-left:     -2x-2
             top:          -2x-2 
-            top-right:    2x-2 
+            top-right:     2x-2 
             left:         -2x-2 
-            center:       0x0 
-            right:        2x-2 
+            center:        0x0 
+            right:         2x-2 
             bottom-left:  -2x2 
             bottom:       -2x2 
-            bottom-right: 2x2 
+            bottom-right:  2x2 
         ] mode
         pos: txt/:n/2 
         size: txt/:n/3
@@ -552,10 +554,6 @@ context [
                 ani-bl/val2: scale-origin txt n mode sc-t
             ]
             
-            ;txt/:n/2: ani-bl/val2
-            ;txt/:n/3/x: to integer! txt/:n/3/x * sc-t
-            ;txt/:n/3/y: to integer! txt/:n/3/y * sc-t
-             
             cur-effect: make effect ani-bl
             cur-target: to-path reduce [to-word rejoin [t-obj/id "-" n] 4]
             put timeline to-string rejoin [cur-target cur-idx] reduce [cur-target cur-effect]
@@ -637,19 +635,31 @@ context [
         ;opt 'loop
     ]
     
+    ; currently no set-word! should be in the block after shape
+    ; that's why it is not thoroughly processed but only scaled 10x
+    ; that means no animations are possible for the shape commands
+    ; inside the block
+    shape: [
+        ['shape set shape-block block!]
+        keep ('shape) keep (autoscale shape-block)
+    ]
+    
     anim-rule: [
         collect [
             some [
                 command
                 opt [
                     param
+                  | shape    
                   | text-fx
                   | particles
                   | curve-fx
-                  | word                                ; Draw command
-                    opt keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)  ; word parameter, like font or image value
-                    any [[from | value keep (scaled) ](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]  ; parameters, incl. animated ones
-                  | into anim-rule                      ; block 
+                  | word            ; Draw command
+                    ; word parameter, like font or image value
+                    opt keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)
+                    ; parameters, incl. animated ones
+                    any [[from | value keep (scaled) ](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
+                  | into anim-rule  ; block 
                 ]                                      
               
             ]
@@ -1156,20 +1166,21 @@ text-along-curve: function [
         
         repeat n length? txt-ofs [
             d: txt-ofs/:n - d0 + txt-sz / 2
-            ;u: d/x / len * spacing + tt
-            u: d/x / len + tt
+            u: d/x / len * spacing + tt
+            ;u: d/x / len + tt
             ttt: bezier-lerp u bez-segs
             if ttt > 0.999 [break]
+            
+            id-t: to word! rejoin [id "-t-" n] ;translate
+            id-r: to word! rejoin [id "-r-" n] ; rotate
             
             c-offs: bezier-n crv ttt
             angle: round/to bezier-tangent crv ttt 0.01
            
-            id-t: to word! rejoin [id "-t-" n] ;translate
-            id-r: to word! rejoin [id "-r-" n] ; rotate
             change at get id-t 2 c-offs - d
             change at get id-r 2 angle
             change at get id-r 3 d
-            
+
             tt: (to-float txt-ofs/:n/x / len * spacing) + t
             d0: txt-ofs/:n
         ]
@@ -1211,7 +1222,7 @@ block-along-curve: function [
             spacing: (spacing)      ; could it be a block of integers?
         ]    
         
-        probe draw-buf
+        ;probe draw-buf
     ][
 
         t: max t 0.005
