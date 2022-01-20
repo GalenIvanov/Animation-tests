@@ -38,11 +38,11 @@ anim: compose/deep [
 		    box 235x65 255x85
 	]
 
-	start 2.0 after fly-in starts ease :ease-in-out-cubic 
+    start 2.0 after fly-in starts ease :ease-in-out-cubic 
     translate from 0x100 to 0x0 [
-	    line 20x130 580x130
-	    text 20x140 "Background: loop forever"
-	]	
+	line 20x130 580x130
+	text 20x140 "Background: loop forever"
+    ]
 ]
 
 view [
