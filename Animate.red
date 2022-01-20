@@ -12,15 +12,15 @@ draw-blocks-data: make map! 20
 random/seed now
 
 effect: make object! [
-    val1:  0.0          ; starting value to change
-    val2:  1.0          ; end value
-    start: 0.0          ; starting time
-    dur:   1.0          ; duration of the animation
-    delay: 0.0          ; delay between successive subanimations
-    ease:  func [x][x]  ; easing function
-    ease:  none         ; easing function
-    loop:  'once        ; repetition of the effect in time
-    fns:   copy []      ; a block of callback functions ; arity 2: [id time]
+    val1:       0.0          ; starting value to change
+    val2:       1.0          ; end value
+    start:      0.0          ; starting time
+    dur:        1.0          ; duration of the animation
+    delay:      0.0          ; delay between successive subanimations
+    loop-count: 1            ; repetitions of the effect in time
+    bi-dir:     off          ; does the animation runs backwards too? 
+    ease:       func [x][x]  ; easing function
+    fns:        []           ; a block of callback functions ; arity 2: [id time]
 ]
 
 timeline: make map! 100 ; the timeline of effects key: value <- id: effect
@@ -49,13 +49,23 @@ text-effect: make object! [
 ]
 
 process-timeline: has [
-    t target v w
+    t target v w d
 ][
     t: to float! difference now/precise st-time
     
     foreach [_ val] timeline [
         w: val/2
-        if w/val1 <> w/val2 [ tween val/1 w/val1 w/val2 w/start w/dur t :w/ease]
+        if w/val1 <> w/val2 [tween val/1 w/val1 w/val2 w/start w/dur t :w/ease]
+
+        if t > (w/start + w/dur) [
+            d: w/dur
+            if w/bi-dir [d: d * 2]
+            if w/loop-count > 1 [
+                w/loop-count: w/loop-count - 1
+                w/start: w/start + d
+            ]
+            if w/loop-count = -1 [w/start: w/start + d] ; loop forever
+        ]
     ]
     
     foreach [key effect] particles-map [
@@ -68,7 +78,6 @@ process-timeline: has [
     foreach [key v] curve-fx-map [
         if all [t >= v/2 t <= (v/2 + v/3 * 1.01)] [
             tween 'target v/4 v/5 v/2 v/3 t get v/6
-            ;target: max 0.0 target
             switch/default last v [
                 text  [text-along-curve v/1 target]
                 block [block-along-curve v/1 target]
@@ -96,21 +105,6 @@ gravity: func [dir speed][
     dir: arctangent2 vy vx
     speed: sqrt vx * vx + (vy * vy)
     reduce [dir speed]
-]
-
-;----------------------------------------------------------------
-; particle respawn functions
-; expects 2 arguments - x and y coordinates of the particle
-; checks if the particle should be respawned and returns
-; the condition, as well as the (new) x and y
-;----------------------------------------------------------------
-from-top: func [x y /local c][
-    c: false
-    if y > 400 [
-       c: true
-       y: 0
-    ]
-    reduce [c x y]
 ]
 
 particle: context [
@@ -295,19 +289,23 @@ context [
     scaled: none
     from-count: 0
     text-fx-id: 1
+    loop-n: 1
+    bi-dir: off
     t-fx: none
     st: none
     time-dir: 1  ; for referencing animations anchors, -1 means backwards
     t-offs: none
     
     make-effect: does [
-        ani-bl: copy/part to-block effect 10
+        ani-bl: copy/part to-block effect 14
         append ani-bl [ease: none] 
         ani-bl/val1: v1
         ani-bl/val2: v2
         ani-bl/start: start-v
         ani-bl/dur: any [dur-v 1.0]
         ani-bl/delay: any [delay-v 0.0]
+        ani-bl/loop-count: 1
+        ani-bl/bi-dir: off
         ani-bl/ease: any [:ease-v to get-word! "ease-linear"]
     ]    
     
@@ -327,6 +325,8 @@ context [
                 time-dir: 1
                 ease-v: none
                 ref-ofs: 0
+                bi-dir: off
+                loop-n: 1
                 if cur-ref [   ; reg the previously named entry
                     put time-map cur-ref reduce [start-anchor dur-v delay-v from-count]
                     time-map/:cur-ref 
@@ -365,17 +365,37 @@ context [
     
     ease: ['ease set ease-v any-word!]
     
+    anim-loop: [
+        'loop
+        p: opt 'two-way (if p/1 = 'two-way [bi-dir: on])
+        opt ['forever (loop-n: -1) | set loop-n integer! 'times ]
+    ]
+   
     from-value: [set v2 word! | value (v2: scaled)]
     
     from: [
         ['from p1: [[set v1 keep word!] | value keep (scaled) (v1: scaled)]
          'to p2: from-value] (
             make-effect
+            ani-bl/loop-count: loop-n
             cur-effect: make effect ani-bl
             trgt: to-path reduce [to-word cur-target val-ofs]
             cur-effect/start: start-v
-            ;print ["current ani-bl" form ani-bl]
-            put timeline to-string trgt reduce [trgt cur-effect]
+            either bi-dir [
+                ani-bl/start: start-v
+                ani-bl/dur: ani-bl/dur / 2.0
+                ani-bl/bi-dir: on
+                cur-effect: make effect ani-bl
+                put timeline to-string trgt reduce [trgt cur-effect]
+                ani-bl/start: start-v + ani-bl/dur
+                tmp: ani-bl/val1
+                ani-bl/val1: ani-bl/val2
+                ani-bl/val2: tmp
+                cur-effect: make effect ani-bl
+                put timeline rejoin [form trgt "_r"] reduce [trgt cur-effect]
+            ][
+                put timeline to-string trgt reduce [trgt cur-effect]
+            ]    
             start-v: start-v + delay-v
             from-count: from-count + 1
          )
@@ -632,7 +652,7 @@ context [
         opt dur
         opt delay
         opt ease
-        ;opt 'loop
+        opt anim-loop
     ]
     
     ; currently no set-word! should be in the block after shape
@@ -1222,7 +1242,7 @@ block-along-curve: function [
             spacing: (spacing)      ; could it be a block of integers?
         ]    
         
-        ;probe draw-buf
+        draw-buf
     ][
 
         t: max t 0.005
