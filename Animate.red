@@ -27,6 +27,8 @@ timeline: make map! 100 ; the timeline of effects key: value <- id: effect
                         ; there should be a record for each face!
 time-map: make map! 100 ; for the named animations
 
+text-fx-map: make map! 10
+
 particles-map: make map! 10
 
 curve-fx-map: make map! 10
@@ -45,6 +47,8 @@ text-effect: make object! [
     start: 0.0      ; starting time
     dur:   1.0      ; duration 
     delay: 0.1      ; delay between subanimations
+    clean-up: 0     ; when to remove the text primitives from the draw block 
+                    ; if zero, uses the end of the last animation of the effect 
     random: false
 ]
 
@@ -53,36 +57,64 @@ process-timeline: has [
 ][
     t: to float! difference now/precise st-time
     
-    foreach [_ val] timeline [
+    foreach [key val] timeline [
         w: val/2
         if w/val1 <> w/val2 [tween val/1 w/val1 w/val2 w/start w/dur t :w/ease]
 
         if t > (w/start + w/dur) [
             d: w/dur
-            if w/bi-dir [d: d * 2]
-            if w/loop-count > 1 [
-                w/loop-count: w/loop-count - 1
-                w/start: w/start + d
+            if w/bi-dir [d: d * 2]        ; two-way loop - reset after 2 x duration
+               either w/loop-count = -1 [    ; loop forever
+                   w/start: w/start + d
+               ][ 
+                   either w/loop-count > 1 [
+                    w/loop-count: w/loop-count - 1
+                    w/start: w/start + d
+                    ][
+                        remove/key timeline key 
+                ]                    
             ]
-            if w/loop-count = -1 [w/start: w/start + d] ; loop forever
         ]
     ]
     
+    ; I need to add clean-up time for particles and curve-fx too!
+    ; now the effects' draw primitives are cleared right after the
+    ; end of the respective animation
     foreach [key effect] particles-map [
         proto: effect/proto
-        if all [t >= proto/start t <= (proto/start + proto/duration)] [
-            particle/update-particles to-word key
-        ]    
+          if t >= proto/start [
+              either t <= (proto/start + proto/duration) [
+                particle/update-particles to-word key
+               ][
+                  remove/key particles-map key
+                    clear at get key 3
+               ]
+        ]
     ]
+     
     target: 0.0
     foreach [key v] curve-fx-map [
-        if all [t >= v/2 t <= (v/2 + v/3 * 1.01)] [
-            tween 'target v/4 v/5 v/2 v/3 t get v/6
-            switch/default last v [
-                text  [text-along-curve v/1 target]
-                block [block-along-curve v/1 target]
-            ][print "Unsupported effect type - must be text or block"]
+          if t >= v/2 [
+                 either t <= (v/2 + v/3 * 1.01) [
+                tween 'target v/4 v/5 v/2 v/3 t get v/6
+                switch/default last v [
+                    text  [text-along-curve v/1 target]
+                    block [block-along-curve v/1 target]
+                ][print "Unsupported effect type - must be text or block"]
+               ][
+                   remove/key curve-fx-map key
+                   clear pick get key 1
+            ]               
         ]
+    ]
+    
+    ;clean-up text-fx
+    foreach [key v] text-fx-map [
+        if t > (1.02 * v) [
+            clear pick get key 1
+            remove/key text-fx-map key
+        ]    
+        
     ]
     
     ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
@@ -176,7 +208,8 @@ particle: context [
         ]
         particles-draw: make block! 3 * n: proto/number 
         ; id can used to remove the entire block followinf translate
-        append particles-draw compose [(to-set-word id) translate 0x0]
+        ;append particles-draw compose [(to-set-word id) translate 0x0]
+        append particles-draw compose [(to-set-word rejoin [id "-" idx]) translate 0x0]
         
         loop n [
             p:  create-particle proto
@@ -295,6 +328,7 @@ context [
     st: none
     time-dir: 1  ; for referencing animations anchors, -1 means backwards
     t-offs: none
+    new-fx: false
     
     make-effect: does [
         ani-bl: copy/part to-block effect 14
@@ -482,11 +516,12 @@ context [
                 draw-data: block-along-curve/init crv-id v1 s-crv-data get args/curve args/space-x
                 fx-type: 'block
             ]
-            put curve-fx-map to-word rejoin [crv-id "-" cur-idx] reduce[crv-id start-v dur-v v1 v2 :ease-v fx-type]
+            put curve-fx-map crv-lbl: to-word rejoin [crv-id "-" cur-idx] reduce[crv-id start-v dur-v v1 v2 :ease-v fx-type]
             cur-idx: cur-idx + 1            
             start-v: start-v + delay-v
             from-count: from-count + 1
         )
+          keep (to-set-word crv-lbl)
         keep (draw-data)
     ]
     
@@ -629,20 +664,27 @@ context [
     from-text: [['from set v1 value 'to set v2 value] | set v1 value (v2: v1)]
     
     text-fx: [
-        'text-fx
+        'text-fx (new-fx: false)
         [set txt-w word! | object!] (
             t-obj: get txt-w
             unless text-data/(t-obj/id) [
                 fx-data: init-text-fx t-obj/id t-obj delay-v
                 text-fx-id: text-fx-id + 1
+                new-fx: true
             ]    
             from-count: length? text-data/(t-obj/id)/chunks  ; counted only once for text-scale, tex-color and text-move
+            cur-text-fx-end: any [text-fx-map/(t-obj/id) 0.0]
+            text-fx-map/(t-obj/id): max cur-text-fx-end delay-v * from-count + start-v  
         )
-        if (text-data/(t-obj/id)) keep (fx-data)
+        ;if (text-data/(t-obj/id)) keep (fx-data)
+        keep (either new-fx[to-set-word t-obj/id][[]])
+        keep (either new-fx[fx-data][[]]) (new-fx: false)
+
         opt [['text-scale from-text (val1: reduce [v1 v2]) from-text (val2: reduce [v1 v2])]
             (scale-text-fx t-obj val1 val2 start-v)]
         opt ['text-move set v1 value (text-move t-obj v1 start-v)]
         opt ['text-color from-text (text-color t-obj v1 v2 start-v)]
+        opt ['clean-up set text-end number! (text-fx-map/(t-obj/id): max text-end text-fx-map/(t-obj/id))]
     ]
     
     command: [
@@ -696,6 +738,7 @@ context [
         draw-block: parse spec anim-rule
         insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1]
         ;probe draw-block
+        ;probe text-fx-map
         ;probe ani-bl
         target/draw: draw-block
        
@@ -822,7 +865,7 @@ tween: function [
     val2     [number! pair! tuple!] {Value to interpolate to}
     start    [float!]               {Start of the time period}
     duration [float!]               {Duration of the time period}
-    t        [float!]               {Current time}
+    t        [number!]              {Current time}
     ease     [function!]            {Easing function}
 ][
     end-t: duration * 1.09 + start  ; depends on the easing!
@@ -1033,7 +1076,7 @@ init-text-fx: function [
     delay  [number!]
 ][
     
-    either not text-data/:id [        ;init
+    if not text-data/:id [        ;init
         t-obj: make text-effect t-spec
         t-obj/delay: delay
         ; t-obj/dur: duration
@@ -1072,10 +1115,8 @@ init-text-fx: function [
                     ]
                 ]
             ]
-        ] 
-    ][  ; animate
+        ]
     ]    
-   
 ]
 
 ; obsolete?
