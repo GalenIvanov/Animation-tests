@@ -33,8 +33,8 @@ anim-block: compose [
     text-fx txt-bl text-color from 255.255.255.0 to 25.12.5.0
     
     start 12.0 duration 0.3 delay 0.02 ease :ease-in-out-cubic
-    text-fx txt-bl text-move 0x-20 
-    text-color from 25.12.5.0 to 25.12.5.255 clean-up 10 ; will be automatically lengthen !
+    text-fx txt-bl text-move -20x0
+    text-color from 25.12.5.0 to 25.12.5.255 expires after 15
 ]
 
 view [
