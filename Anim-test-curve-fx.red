@@ -39,8 +39,8 @@ block: compose/deep [
     (bez-test)
     line-width 3
     start 1.0 duration 2.0 delay 1.0 ease :ease-in-out-cubic
-    curve-fx Red-lang red-info from 1.0 to 0.0
-    curve-fx test-block shapes from 1.0 to 0.0
+    curve-fx Red-lang red-info from 1.0 to 0.0 expires after 5
+    curve-fx test-block shapes from 1.0 to 0.0 expires after 5
 ]
 
 view [
