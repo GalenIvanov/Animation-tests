@@ -47,7 +47,7 @@ text-effect: make object! [
     start: 0.0      ; starting time
     dur:   1.0      ; duration 
     delay: 0.1      ; delay between subanimations
-    clean-up: 0     ; when to remove the text primitives from the draw block 
+    expires: 0      ; when to remove the text primitives from the draw block 
                     ; if zero, uses the end of the last animation of the effect 
     random: false
 ]
@@ -94,27 +94,28 @@ process-timeline: has [
      
     target: 0.0
     foreach [key v] curve-fx-map [
-          if t >= v/2 [
-                 either t <= (v/2 + v/3 * 1.01) [
+        if t >= v/2 [
+            either t <= (v/2 + v/3 * 1.01) [
                 tween 'target v/4 v/5 v/2 v/3 t get v/6
                 switch/default last v [
                     text  [text-along-curve v/1 target]
                     block [block-along-curve v/1 target]
                 ][print "Unsupported effect type - must be text or block"]
-               ][
+            ][
+                if all [v/7 <> 0 t > v/7] [
+                   clear pick get key 1  ; clear the effect's draw block
                    remove/key curve-fx-map key
-                   clear pick get key 1
+                ]   
             ]               
         ]
     ]
     
     ;clean-up text-fx
     foreach [key v] text-fx-map [
-        if t > (1.02 * v) [
+        if all [v <> 0 t > (1.02 * v)] [
             clear pick get key 1
             remove/key text-fx-map key
-        ]    
-        
+        ]
     ]
     
     ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
@@ -496,6 +497,7 @@ context [
             'curve-fx
             (
                 v2: none
+                curve-fx-end: 0
                 ease-v: any [:ease-v to get-word! "ease-linear"]
             )
             set crv-id word! ;(probe crv-id)
@@ -503,10 +505,17 @@ context [
             [
                 ['from set v1 float! 'to set v2 float!]
                 | set v1 float! (probe v1)
-            ]    
+            ]
+            opt [
+                'expires [
+                    ['after set curve-fx-end number!] 
+                  | 'never
+                ]  
+            ]
         ]
         (
             v2: any [v2 v1]
+            if curve-fx-end > 0 [curve-fx-end: max start-v + curve-fx-end start-v + dur-v]
             if word? s-crv-data: select args: get crv-data 'data [s-crv-data: get s-crv-data]
             ; check if we are to move text or draw block along curve
             either string? s-crv-data [
@@ -516,7 +525,16 @@ context [
                 draw-data: block-along-curve/init crv-id v1 s-crv-data get args/curve args/space-x
                 fx-type: 'block
             ]
-            put curve-fx-map crv-lbl: to-word rejoin [crv-id "-" cur-idx] reduce[crv-id start-v dur-v v1 v2 :ease-v fx-type]
+            put curve-fx-map crv-lbl: to-word rejoin [crv-id "-" cur-idx] reduce [
+                crv-id 
+                start-v
+                dur-v
+                v1
+                v2
+                :ease-v
+                curve-fx-end
+                fx-type
+            ]
             cur-idx: cur-idx + 1            
             start-v: start-v + delay-v
             from-count: from-count + 1
@@ -684,7 +702,15 @@ context [
             (scale-text-fx t-obj val1 val2 start-v)]
         opt ['text-move set v1 value (text-move t-obj v1 start-v)]
         opt ['text-color from-text (text-color t-obj v1 v2 start-v)]
-        opt ['clean-up set text-end number! (text-fx-map/(t-obj/id): max text-end text-fx-map/(t-obj/id))]
+        opt [
+            'expires [
+            [
+                'after set text-end number!
+                (text-fx-map/(t-obj/id): max text-end text-fx-map/(t-obj/id))
+            ]
+          | 'never (text-fx-map/(t-obj/id): 0)
+          ]
+        ] 
     ]
     
     command: [
