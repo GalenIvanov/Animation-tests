@@ -26,13 +26,10 @@ effect: make object! [
 timeline: make map! 100 ; the timeline of effects key: value <- id: effect
                         ; there should be a record for each face!
 time-map: make map! 100 ; for the named animations
-
 text-fx-map: make map! 10
-
 particles-map: make map! 10
-
 curve-fx-map: make map! 10
-
+curve-fx-init: make block! 10
 scaled-fonts: copy []
 
 text-effect: make object! [
@@ -86,8 +83,10 @@ process-timeline: has [
               either t <= (proto/start + proto/duration) [
                 particle/update-particles to-word key
                ][
-                  remove/key particles-map key
-                    clear at get key 3
+                    if t > proto/expires [
+                        clear at get key 3
+                        remove/key particles-map key
+                    ]
                ]
         ]
     ]
@@ -103,8 +102,8 @@ process-timeline: has [
                 ][print "Unsupported effect type - must be text or block"]
             ][
                 if all [v/7 <> 0 t > v/7] [
-                   clear pick get key 1  ; clear the effect's draw block
                    remove/key curve-fx-map key
+                   clear pick get v/1 1  ; clear the effect's draw block
                 ]   
             ]               
         ]
@@ -158,6 +157,7 @@ particle: context [
         forces:    []                   ; what forces affect the particles motion - a block of words
         limits:    []                   ; conditions for particle to be respawned - based on coordinates 
         new-coords: []                  ; where reposition the particle
+        expires:    0                   ; when to clear the particle draw block
     ]
     
     create-particle: func [
@@ -208,8 +208,6 @@ particle: context [
             'draw copy []
         ]
         particles-draw: make block! 3 * n: proto/number 
-        ; id can used to remove the entire block followinf translate
-        ;append particles-draw compose [(to-set-word id) translate 0x0]
         append particles-draw compose [(to-set-word rejoin [id "-" idx]) translate 0x0]
         
         loop n [
@@ -480,6 +478,7 @@ context [
     
     particles: [
         'particles
+        (particles-end: 0)
         set p-id word!
         set p-proto word! 
         (
@@ -489,6 +488,13 @@ context [
            start-v: start-v + delay-v
            from-count: from-count + 1
         )
+        opt [
+                'expires [
+                    ['after set particles-end number!] 
+                  | 'never
+                ]
+                (if particles-end > 0 [append prt compose [expires: (max start-v + dur-v start-v + particles-end)]])
+            ]
         keep (particle/init-particles p-id make particle/particle-base prt cur-idx)
     ]
     
@@ -539,8 +545,8 @@ context [
             start-v: start-v + delay-v
             from-count: from-count + 1
         )
-          keep (to-set-word crv-lbl)
-        keep (draw-data)
+        keep (either find curve-fx-init crv-id [[]][to-set-word crv-id])
+        keep (either find curve-fx-init crv-id [[]][also draw-data append curve-fx-init crv-id])
     ]
     
     scale-origin:  func [
@@ -694,9 +700,8 @@ context [
             cur-text-fx-end: any [text-fx-map/(t-obj/id) 0.0]
             text-fx-map/(t-obj/id): max cur-text-fx-end delay-v * from-count + start-v  
         )
-        ;if (text-data/(t-obj/id)) keep (fx-data)
-        keep (either new-fx[to-set-word t-obj/id][[]])
-        keep (either new-fx[fx-data][[]]) (new-fx: false)
+        keep (either new-fx [to-set-word t-obj/id][[]])
+        keep (either new-fx [fx-data][[]]) (new-fx: false)
 
         opt [['text-scale from-text (val1: reduce [v1 v2]) from-text (val2: reduce [v1 v2])]
             (scale-text-fx t-obj val1 val2 start-v)]
