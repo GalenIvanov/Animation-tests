@@ -31,6 +31,7 @@ particles-map: make map! 10
 curve-fx-map: make map! 10
 curve-fx-init: make block! 10
 scaled-fonts: copy []
+stroke-path-map: make map! 10
 
 text-effect: make object! [
     id: none        ; 
@@ -328,6 +329,8 @@ context [
     time-dir: 1  ; for referencing animations anchors, -1 means backwards
     t-offs: none
     new-fx: false
+    path-id: none
+    path-block: none
     
     make-effect: does [
         ani-bl: copy/part to-block effect 14
@@ -718,6 +721,111 @@ context [
         ] 
     ]
     
+    get-lines: function [
+        lines [block!]  {block of points}
+    ][
+        collect [
+            keep 'line
+            foreach p lines [keep p * 10]
+        ]
+    ]
+
+    bezier-to-lines: function [   
+        ; not linearly spaced - must use bezier-lerp!
+        bez-pts [block!]    {block of points}
+        lim     [integer!]  {how many lines to split the curve into}
+    ][ 
+        tt: 0.01
+        bez: copy bez-pts
+        forall bez [bez/1: 10x10 * bez/1]
+        len: bezier-lengths bez 200
+        collect [
+            keep 'line
+            repeat n lim [
+                u: bezier-lerp tt len
+                keep bezier-n bez u
+                tt: 1.0 * n / lim
+            ]
+        ]    
+    ]
+    
+    length: function [
+        {Calculates the length of a block containing lines, arcs and bezier curves}
+        data [block!]  {a block of line points, bezier points or arc radius and sweep values}
+    ][
+        len: 0.0
+        while [not tail? data][
+            mode: data/1
+            data: next data
+            seq: offset? data any [find next data word! tail data]
+            len: len + switch mode [
+                line [
+                    d: 0.0
+                    repeat n seq - 1 [
+                        d: d + sqrt data/:n/x - data/(n + 1)/x ** 2 + (data/:n/y - data/(n + 1)/y ** 2)
+                    ]
+                    ;d
+                ]
+                arc [pi * data/2/x * (absolute data/4) / 180.0]
+                bezier [
+                    b-copy: copy/part data seq
+                    last bezier-lengths b-copy 200
+                ]
+            ]
+            data: skip data seq
+        ]
+        len
+    ]
+
+    
+    path: [
+        some [
+            [
+                'line set p1 pair! rest-pts: some pair!
+                p-end: (lines: head insert copy/part rest-pts p-end p1)
+                keep (get-lines lines) ; temporary
+                (append path-block get-lines lines)
+            ]
+          | [
+                'arc 
+                set arc-center pair!
+                set arc-radius integer!  ; only circular arcs - different from Draw's arc !!!
+                set arc-begin number!
+                set arc-sweep number!
+                keep (cur-arc: reduce ['arc arc-center * 10 10x10 * arc-radius arc-begin arc-sweep]) ; temporary
+                (append path-block cur-arc)
+            ]
+          | [
+                'bezier
+                ; block or word ? - larger data is usually stored in a named block 
+                set p1 pair!
+                set p2 pair!
+                rest-bezier: some pair! end-bezier: (
+                    b-lines: head insert copy/part rest-bezier end-bezier reduce [p1 p2] 
+                )
+                keep (cur-bezier: bezier-to-lines b-lines 100) ; 100 is arbitrary! ; temporary
+                (
+                    append path-block 'bezier
+                    forall b-lines [b-lines/1: 10x10 * b-lines/1]
+                    append path-block b-lines
+                )
+            ]          
+        ]
+    ]
+    
+    stroke-path: [
+        [
+            'stroke-path
+            set path-id word! (path-block: make block! 50)
+            path (probe length probe path-block)   ; WIP -> continue here
+            ; line width
+            ; color
+            ; line 
+            ()
+        ]
+        ()
+    ]
+    
     command: [
         (time-id: none)
         opt [set time-id [set-word! ahead 'start]]   ; named animation
@@ -732,10 +840,13 @@ context [
     ; that's why it is not thoroughly processed but only scaled 10x
     ; that means no animations are possible for the shape commands
     ; inside the block
+    ; Fixed by @dockimbel - need to test it !
     shape: [
         ['shape set shape-block block!]
         keep ('shape) keep (autoscale shape-block)
     ]
+    
+    
     
     anim-rule: [
         collect [
@@ -747,6 +858,7 @@ context [
                   | text-fx
                   | particles
                   | curve-fx
+                  | stroke-path
                   | word            ; Draw command
                     ; word parameter, like font or image value
                     opt keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)
@@ -767,7 +879,7 @@ context [
     ][
         
         draw-block: parse spec anim-rule
-        insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1]
+        insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1 line-width 10]
         ;probe draw-block
         ;probe text-fx-map
         ;probe ani-bl
