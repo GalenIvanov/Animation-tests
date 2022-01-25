@@ -75,23 +75,23 @@ scene: compose/deep [
     
     font fnt-snow
     start 0.0 duration 20.0 
-    particles snow snow-obj
+    particles snow snow-obj expires after 10
     
     start 2.0 duration 5.0 ease :ease-in-out-cubic
     translate 0x80 [
         font fnt2
-        curve-fx greeting-b happy-new-year from 1.0 to 0.0
+        curve-fx greeting-b happy-new-year from 1.0 to 0.0 expires after 18
         translate -3x-3 
         font fnt1
-        curve-fx greeting happy-new-year from 1.0 to 0.0
+        curve-fx greeting happy-new-year from 1.0 to 0.0  expires after 18
     ]    
     start 10.0 duration 5.0 ease :ease-in-out-cubic
     translate 0x80 [
         font fnt2
-        curve-fx greeting-b happy-new-year from 0.0 to 1.0
+        curve-fx greeting-b happy-new-year from 0.0 to 1.0 expires after 18
         translate -3x-3 
         font fnt1
-        curve-fx greeting happy-new-year from 0.0 to 1.0
+        curve-fx greeting happy-new-year from 0.0 to 1.0 expires after 18
     ]
     
     start 18.0 duration 2.0 ease :ease-in-out-cubic
@@ -99,7 +99,9 @@ scene: compose/deep [
     box 0x0 600x400
 ]
 
+print "start"
+
 view [
-    base 600x400 rate 120
+    canvas: base 600x400 rate 120
     on-create [parse-anim scene face]
 ]
