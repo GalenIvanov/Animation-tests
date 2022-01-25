@@ -88,16 +88,16 @@ d: [
     
     start 1.0 duration 5.0 delay 2.0
     
-    particles test motes
+    particles test motes expires after 6
     line-width 8 pen white fill-pen transparent
     box 50x50 150x350
     
     pen transparent fill-pen papaya
-    particles vulcano burst
+    particles vulcano burst expires after 6
     fill-pen transparent pen papaya  circle 300x200 125
     
     font fnt
-    particles fleet rocket 
+    particles fleet rocket expires after 6
     pen sky box 460x50 570x350
 ]
 
