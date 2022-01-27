@@ -17,14 +17,14 @@ path: [
 
 path-block: compose [
     pen white
-	line-width 15
-	line-cap round
-   	
+    line-width 15
+    line-cap round
+       
     start 1 duration 3 ease :ease-in-out-quad
-	stroke-path test (path) width 15 color (papaya - 10.10.10)
-	
-	start 1 duration 3
-	stroke-path test2 (path) width 5 color (yello + 10.10.10)
+    stroke-path test (path) width 15 color (papaya - 10.10.10)
+    
+    start 1 duration 3
+    stroke-path test2 (path) width 5 color (yello + 10.10.10)
 ]
 
 view [
