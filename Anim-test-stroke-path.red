@@ -16,7 +16,6 @@ path: [
 ]
 
 path-block: compose [
-    pen white
     line-width 15
     line-cap round
        
