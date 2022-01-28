@@ -122,7 +122,11 @@ process-timeline: has [
                 tween 'target 0.0 1.0 v/start v/duration t get v/ease
                 trace-path to-word key target
             ][
-                ; clean-up
+                trace-path to-word key 1.0 
+                if all [v/expires > 0 t > v/expires] [
+                    remove/key stroke-path-map key
+                    clear first get key
+                ]    
             ]
         ]
     ]
@@ -768,7 +772,7 @@ context [
           | [
                 'arc 
                 set arc-center pair!
-                set arc-radius integer!  ; only circular arcs - different from Draw's arc !!!
+                set arc-radius pair!  ; only x is used - circular arcs !!!
                 set arc-begin number!
                 set arc-sweep number!
                 (cur-arc: reduce ['arc arc-center * 10 10x10 * arc-radius arc-begin arc-sweep])
@@ -830,7 +834,6 @@ context [
         parse data-len [some [set d number! (min-len: min d min-len len: len + d) | skip]]
         seg-len: min 50.0 min-len
         seg-n: len / seg-len
-        print ["Number of segments" seg-n]
         path: make block! seg-n * 3
         carry: 0.0
         
@@ -840,6 +843,7 @@ context [
             cur-pos:   0
             start:     (start-v)
             duration:  (dur-v)
+            expires:   (stroke-path-end)
             color:     (color)
             count:     (seg-n)
             cur-count: 0
@@ -965,13 +969,23 @@ context [
     ]    
     
     stroke-path: [
-        'stroke-path
-        (ease-v: any [:ease-v to get-word! "ease-linear"])
+        'stroke-path (
+            ease-v: any [:ease-v to get-word! "ease-linear"]
+            stroke-path-end: 0
+        )
         set path-id word! (path-block: make block! 50)
         path 
         'width set width integer!
         'color set color [tuple! | word!]
-        (
+        opt [
+            'expires [
+            [
+                'after set stroke-path-end number!
+                (stroke-path-end: max start-v + stroke-path-end start-v + dur-v)
+            ]
+          | 'never
+          ]
+        ](
             path-id: to-word rejoin [path-id "-" cur-idx]
             new-block: break-path path-id path-block width color  ; how many segments? 200 
             start-v: start-v + delay-v
