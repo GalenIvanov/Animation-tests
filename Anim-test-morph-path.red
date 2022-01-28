@@ -1,5 +1,5 @@
 Red [
-    title: "Animation tests - stroke-path"
+    title: "Animation tests - morph-path"
     author: "Galen Ivanov"
     needs: view
 ]
