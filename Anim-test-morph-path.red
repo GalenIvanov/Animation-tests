@@ -9,10 +9,10 @@ Red [
 n-gon: function [n c r p][
     collect [
         keep 'line
-	    loop n + 1 [
-    	    keep as-pair (r * cosine p) + c/x (r * sine p) + c/y
-		    p: 360 / n + p
-	    ]
+        loop n + 1 [
+            keep as-pair (r * cosine p) + c/x (r * sine p) + c/y
+            p: 360 / n + p
+        ]
     ]
 ]
 
@@ -23,12 +23,10 @@ probe morph-path-block: compose/deep [
     pen white
     line-width 5
     line-cap round
-       
     start 2 duration 2 ease :ease-in-out-quint
-	(path1)
-	(path2)
-	
-	morph-path (path1) into (path2) width 5 color red
+    (path1)
+    (path2)
+    morph-path (path1) into (path2) width 5 color red
 ]
 
 view compose [
