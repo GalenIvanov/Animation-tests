@@ -53,6 +53,7 @@ morph-path-block: compose/deep [
     start 2 duration 2 ease :ease-in-out-quint
     morph-path (path1) into (path3) visible true expires after 2
     start 4 duration 2 ease :ease-in-out-quint
+    pen from red to white on-start [print "Starting color tween!"]
     morph-path (path3) into (path2) visible false
 ]
 
