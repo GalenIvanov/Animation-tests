@@ -51,9 +51,9 @@ morph-path-block: compose/deep [
     line-width 3
     line-cap round
     start 2 duration 2 ease :ease-in-out-quint
-    morph-path (path1) into (path3) width 5 color red visible true expires after 2
+    morph-path (path1) into (path3) visible true expires after 2
     start 4 duration 2 ease :ease-in-out-quint
-    morph-path (path3) into (path2) width 5 color red visible false
+    morph-path (path3) into (path2) visible false
 ]
 
 view compose [
