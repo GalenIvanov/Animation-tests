@@ -133,7 +133,6 @@ process-timeline: has [
     ]
     
     foreach [key v] morph-path-map [
-        ;probe all [not v/started t > (0.98 * v/start)]
         s: v/started
         if all [t > (0.98 * v/start) not s][
             clear p: get to-path reduce [to-word key 1]
@@ -143,14 +142,13 @@ process-timeline: has [
         
         if all [t >= v/start s] [
             either t <= (v/start + v/duration) [
-                repeat n length? at v/block-1 4[
-                    tween to-path reduce [to-word key 1 n + 3] v/block-1/(n + 3) v/block-2/(n + 3) v/start v/duration t get v/ease
+                repeat n length? at v/block-1 2[
+                    k: n + 1
+                    tween to-path reduce [to-word key 1 k] v/block-1/:k v/block-2/:k v/start v/duration t get v/ease
                 ]
             ][
                clear p: get to-path reduce [to-word key 1]
-               append p reduce ['pen v/color]
                append p v/end-block
-               ;print ["morph end" v/expires t]               
                if all [v/expires > 0 t > v/expires] [
                    clear p
                    remove/key morph-path-map key
@@ -1025,7 +1023,6 @@ context [
     path-to-lines: function [
         data  [block!]
         seg-n [integer!]
-        color [tuple!]
     ][
         data-len: lengths data
         len: 0.0
@@ -1033,7 +1030,7 @@ context [
         seg-len: len / seg-n
         
         collect/into  [
-            keep compose [pen (color) line]           ; not just red :) 
+            keep 'line
             while [not tail? data][
                 mode: data/1
                 data: next data
@@ -1064,7 +1061,6 @@ context [
                       
                             data-len: next data-len
                         ]
-                       
                     ]
                     arc [
                         arc-params: copy/part data 4
@@ -1130,7 +1126,6 @@ context [
         target [word!]
         p1 [block!]
         p2 [block!]
-        color [tuple! word!]        
     ][
         len-1: 0.0   ; length of the first path 
         data-len-1: lengths p1
@@ -1140,22 +1135,19 @@ context [
         data-len-2: lengths p2
         parse data-len-2 [some [set d number! (len-2: len-2 + d) | skip]]
         
-        if word? color [color: get color] 
-        
         ; the segment length is different for the two paths
         ; Arcs and bezier curve should not look too jaggy 
         ; 50 (5 pixels0 ?
         seg-n: to-integer len-1 + len-2 / 100.0  ;  short for  / 2 / 50.0
               
-        lines-1: path-to-lines p1 seg-n color
-        lines-2: path-to-lines p2 seg-n color
+        lines-1: path-to-lines p1 seg-n
+        lines-2: path-to-lines p2 seg-n
         
         ; equalize the number of points in both blocks
         ; needs to be distrubuted evenly
         if (l1: length? lines-1) < l2: length? lines-2 [
             d: l2 - l1
-            
-            skp: to integer! l1 - 3 / d
+            skp: to integer! l1 - 1 / d
             p: lines-1
             loop d - 1 [
                p: skip p skp
@@ -1166,7 +1158,7 @@ context [
         ]
         if (l1: length? lines-1) > l2: length? lines-2 [
             d: l1 - l2
-            skp: to integer! l2 - 3 / d
+            skp: to integer! l2 - 1 / d
             p: lines-2
             loop d - 1[
                p: skip p skp
@@ -1183,7 +1175,6 @@ context [
             block-1: [(lines-1)]
             block-2: [(lines-2)]
             end-block: [(p2)]
-            color: (color)
             ease: (ease-v)
             started: (false)
         ]
@@ -1199,8 +1190,6 @@ context [
         path (path1: copy path-block clear path-block)
         'into
         path (path2: copy path-block)
-        'width set width integer!
-        'color set color [tuple! | word!]
         opt ['visible set show-first word! (show-first: get show-first)] 
         opt [
             'expires [
@@ -1212,7 +1201,7 @@ context [
         (
             target: to-word rejoin ["morph-" cur-idx]
             cur-idx: cur-idx + 1
-            linearize-paths target path1 path2 color
+            linearize-paths target path1 path2
         )
         keep (to-set-word target)
         keep (either show-first [path1][[]])
