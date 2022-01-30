@@ -133,19 +133,27 @@ process-timeline: has [
     ]
     
     foreach [key v] morph-path-map [
-        ;target: 0.0
-        if t >= v/start [
+        ;probe all [not v/started t > (0.98 * v/start)]
+        s: v/started
+        if all [t > (0.98 * v/start) not s][
+            clear p: get to-path reduce [to-word key 1]
+            append p v/block-1
+            v/started: on
+        ]
+        
+        if all [t >= v/start s] [
             either t <= (v/start + v/duration) [
-                ;tween 'target 0.0 1.0 v/start v/duration t get v/ease
-                ;dest: at first get key 4
-                ;probe get to-path reduce [to-word key 1 4]
                 repeat n length? at v/block-1 4[
                     tween to-path reduce [to-word key 1 n + 3] v/block-1/(n + 3) v/block-2/(n + 3) v/start v/duration t get v/ease
                 ]
             ][
+               clear p: get to-path reduce [to-word key 1]
+               append p reduce ['pen v/color]
+               append p v/end-block 
+               remove/key morph-path-map key
             ]
         ]
-    ]    
+    ]
     
     ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
 ]
@@ -918,10 +926,10 @@ context [
                         arc-b: data/3
                         arc-s: data/4
                         arc-len: data-len/1
-                        sign: pick [-1 1] arc-s < 0
-                        phi: sign * arc-angle arc-r/x seg-len
+                        sgn: pick [-1 1] arc-s < 0
+                        phi: sgn * arc-angle arc-r/x seg-len
                         if carry > 0 [   ; if there is a leftover from a previous primitive
-                            c-angle: sign * arc-angle arc-r/x carry
+                            c-angle: sgn * arc-angle arc-r/x carry
                             keep reduce ['arc arc-c arc-r arc-b to-integer round c-angle]
                             arc-s: arc-s - c-angle
                             arc-b: arc-b + c-angle
@@ -943,7 +951,7 @@ context [
                         lookup-len: bezier-lengths bezier-pts 500
                         p1: data/1
                         if (t: carry / len) > 0.01 [ ;t is the position on the curve from 0.0 to 1.0
-                            keep reduce ['pen 'teal 'line ]
+                            keep reduce ['pen (color) 'line ]
                             keep bezier-n bezier-pts bezier-lerp carry / len lookup-len
                             bezier-len: bezier-len - carry
                         ]
@@ -1011,18 +1019,17 @@ context [
     ]
     
     path-to-lines: function [
-        data  [block!]   
+        data  [block!]
         seg-n [integer!]
+        color [tuple!]
     ][
         data-len: lengths data
         len: 0.0
         parse data-len [some [set d number! (len: len + d) | skip]]
-        probe seg-len: len / seg-n
-        carry: 0.0
+        seg-len: len / seg-n
         
         collect/into  [
-            keep [pen red]
-            keep 'line  ; the entire block will be a single line
+            keep compose [pen (color) line]           ; not just red :) 
             while [not tail? data][
                 mode: data/1
                 data: next data
@@ -1036,125 +1043,146 @@ context [
                             phi: arctangent2 data/(n + 1)/y - py data/(n + 1)/x - px
                             line-len: data-len/1
                             
-                            if carry > 0.0 [                         ; draw the remaining part of a line
-                                carry: seg-len - carry
-                                ; if there is carry, we skip the first point!
-                                px: px + (carry * cosine phi)
-                                py: py + (carry * sine phi)
-                                keep as-pair px py
-                                line-len: line-len - carry
-                            ]
+                            keep as-pair px py
                             
                             dx: seg-len * cosine phi
                             dy: seg-len * sine phi
                             
-                            while [line-len >= seg-len][       ; break the line
-                                keep as-pair px py
+                            k: to-integer line-len / seg-len
+                            
+                            loop k [
                                 px: px + dx
                                 py: py + dy
-                                line-len: line-len - seg-len
+                                keep as-pair px py
                             ]
                             
-                            if line-len > 0 [
-                                take/last collected
-                                 keep data/(n + 1)
-                                carry: line-len
-                            ]
-                            
-                            
+                            if (line-len // seg-len) > 0 [keep data/(n + 1)]
+                      
                             data-len: next data-len
                         ]
-                        if carry > 0 [print ["Carry " carry]]
+                       
                     ]
-                    {
                     arc [
-                        arc-c: data/1
-                        arc-r: data/2
-                        arc-b: data/3
-                        arc-s: data/4
-                        arc-len: data-len/1
-                        sign: pick [-1 1] arc-s < 0
-                        phi: sign * arc-angle arc-r/x seg-len
-                        if carry > 0 [   ; if there is a leftover from a previous primitive
-                            c-angle: sign * arc-angle arc-r/x carry
-                            keep reduce ['arc arc-c arc-r arc-b to-integer round c-angle]
-                            arc-s: arc-s - c-angle
-                            arc-b: arc-b + c-angle
-                        ]
-                        while  [(absolute arc-s) >= absolute phi][
-                            keep reduce ['pen color 'arc arc-c arc-r to-integer round arc-b to-integer round phi]
-                            arc-s: arc-s - phi
-                            arc-b: arc-b + phi
-                        ]
-                        if (absolute arc-s) > 0 [
-                            keep reduce ['pen (color) 'arc arc-c arc-r to-integer round arc-b to-integer round arc-s]
-                            carry: seg-len - arc-length arc-r/x arc-s ; set carry
-                        ]
+                        arc-params: copy/part data 4
+                        keep arc-to-lines arc-params seg-len
                         data-len: next data-len
-                    ]    
+                    ]
+                    
                     bezier [
                         bezier-len: data-len/1
                         bezier-pts: copy/part data seq
+                        data: back data
+                        take/part data seq + 1
+                        rest: take/part data tail data
+                        append data 'line
+                        seq: 1
                         lookup-len: bezier-lengths bezier-pts 500
-                        p1: data/1
-                        if (t: carry / len) > 0.01 [ ;t is the position on the curve from 0.0 to 1.0
-                            keep reduce ['pen 'teal 'line ]
-                            keep bezier-n bezier-pts bezier-lerp carry / len lookup-len
-                            bezier-len: bezier-len - carry
-                        ]
                         
+                        t: 0.005
                         delta-t: seg-len / bezier-len
                         while [bezier-len > seg-len][
-                            keep reduce ['pen  color 'line p1]
-                            t: t + delta-t
                             keep p1: bezier-n bezier-pts bezier-lerp t lookup-len
                             bezier-len: bezier-len - seg-len
+                            append data p1
+                            seq: seq + 1
+                            t: t + delta-t
                         ]
-                        if bezier-len > 0 [keep last bezier-pts carry: seg-len - bezier-len]
+                        if bezier-len > 0 [keep lst: last bezier-pts append data lst seq: seq + 1]
+                        append data rest
                         data-len: next data-len
                     ]
-                    }
                 ]
                 data: skip data seq
             ]
         ] make block! seg-n
     ]
-
+    
+    arc-to-lines: function [
+        {Turns an arc to line segments}
+        p [block!]
+        seg-len [number!]
+    ][
+        c: p/1
+        r: p/2/x
+        b: p/3
+        s: p/4
+        d-phi: (sign? s) * arc-angle r seg-len
+        a: b
+        collect [
+            while [(absolute a) < absolute b + s][
+                px: (r * cosine a) + c/x
+                py: (r * sine a) + c/y
+                keep as-pair px py
+                a: a + d-phi
+            ]
+            px: (r * cosine b + s) + c/x
+            py: (r * sine b + s) + c/y
+            keep as-pair px py
+        ]
+    ]
+    
     linearize-paths: function [
-        {Replaces line, arc and bezier in both blocks with just lines}
+        {Replaces line, arc and bezier in both blocks with lines only}
         target [word!]
         p1 [block!]
-        p2 [block!] 
+        p2 [block!]
+        color [tuple! word!]        
     ][
         len-1: 0.0   ; length of the first path 
-        min-len-1: 1e6 
         data-len-1: lengths p1
-        parse data-len-1 [some [set d number! (min-len-1: min d min-len-1 len-1: len-1 + d) | skip]]
+        parse data-len-1 [some [set d number! (len-1: len-1 + d) | skip]]
         
         len-2: 0.0  ; length of the second path
-        min-len-2: 1e6 
         data-len-2: lengths p2
-        parse data-len-2 [some [set d number! (min-len-2: min d min-len-2 len-2: len-2 + d) | skip]]
+        parse data-len-2 [some [set d number! (len-2: len-2 + d) | skip]]
+        
+        if word? color [color: get color] 
         
         ; the segment length is different for the two paths
         ; Arcs and bezier curve should not look too jaggy 
-        ; check if 50 (5 pixels work for both)
+        ; 50 (5 pixels0 ?
         seg-n: to-integer len-1 + len-2 / 100.0  ;  short for  / 2 / 50.0
+              
+        lines-1: path-to-lines p1 seg-n color
+        lines-2: path-to-lines p2 seg-n color
         
-        lines-1: path-to-lines p1 seg-n
-        print ["Path 1 has" length? next lines-1 "points"]
-        lines-2: path-to-lines p2 seg-n
-        print ["Path 2 has" length? next lines-2 "points"]
-        
+        ; equalize the number of points in both blocks
+        ; needs to be distrubuted evenly
+        if (l1: length? lines-1) < l2: length? lines-2 [
+            d: l2 - l1
+            
+            skp: to integer! l1 - 3 / d
+            p: lines-1
+            loop d - 1 [
+               p: skip p skp
+               insert p p/1
+               p: next p
+            ]
+            append lines-1 last lines-1
+        ]
+        if (l1: length? lines-1) > l2: length? lines-2 [
+            d: l1 - l2
+            skp: to integer! l2 - 3 / d
+            p: lines-2
+            loop d - 1[
+               p: skip p skp
+               insert p p/1
+               p: next p
+            ]
+            append lines-2 last lines-2
+        ]
+
         put morph-path-map target compose/deep [
             start: (start-v)
             duration: (dur-v)
             expires: 0  ; 
             block-1: [(lines-1)]
             block-2: [(lines-2)]
-            ease:   (ease-v)
+            end-block: [(p2)]
+            color: (color)
+            ease: (ease-v)
+            started: (false)
         ]
-        lines-1
     ]
     
     morph-path: [
@@ -1162,24 +1190,29 @@ context [
             ease-v: any [:ease-v to get-word! "ease-linear"]
             path-block: make block! 100
             morph-path-end: 0
+            show-first: false
         )
         path (path1: copy path-block clear path-block)
         'into
         path (path2: copy path-block)
         'width set width integer!
         'color set color [tuple! | word!]
+        opt ['visible set show-first word! (show-first: get show-first)] 
         opt [
             'expires [
                 ['after set morph-path-end number! 
                 (morph-path-end: start-v + max morph-path-end dur-v)]
           | 'never
             ]
-        ](
-            probe target: to-word rejoin ["morph-" cur-idx]
+        ]
+        (
+            target: to-word rejoin ["morph-" cur-idx]
             cur-idx: cur-idx + 1
+            linearize-paths target path1 path2 color
         )
         keep (to-set-word target)
-        keep (linearize-paths target path1 path2)
+        keep (either show-first [path1][[]])
+        
     ]
     
     command: [
