@@ -12,15 +12,18 @@ draw-blocks-data: make map! 20
 random/seed now
 
 effect: make object! [
-    val1:       0.0          ; starting value to change
-    val2:       1.0          ; end value
-    start:      0.0          ; starting time
-    dur:        1.0          ; duration of the animation
-    delay:      0.0          ; delay between successive subanimations
-    loop-count: 1            ; repetitions of the effect in time
-    bi-dir:     off          ; does the animation runs backwards too? 
-    ease:       func [x][x]  ; easing function
-    fns:        []           ; a block of callback functions ; arity 2: [id time]
+    val1:          0.0          ; starting value to change
+    val2:          1.0          ; end value
+    start:         0.0          ; starting time
+    dur:           1.0          ; duration of the animation
+    delay:         0.0          ; delay between successive subanimations
+    loop-count:    1            ; repetitions of the effect in time
+    bi-dir:        off          ; does the animation runs backwards too? 
+    started:       false        
+    on-start: []
+    on-time:  []
+    on-end:   []
+    ease:          func [x][x]  ; easing function
 ]
 
 timeline: make map! 100 ; the timeline of effects key: value <- id: effect
@@ -59,7 +62,12 @@ process-timeline: has [
     foreach [key val] timeline [
         w: val/2
         if w/val1 <> w/val2 [tween val/1 w/val1 w/val2 w/start w/dur t :w/ease]
-
+        
+        if all [not w/started t > w/start][
+            do w/on-start
+            w/started: true
+        ]
+        
         if t > (w/start + w/dur) [
             d: w/dur
             if w/bi-dir [d: d * 2]        ; two-way loop - reset after 2 x duration
@@ -371,9 +379,12 @@ context [
     path-id: none
     path-block: none
     frame-rate: 1
+    from-on-start: []
+    from-on-time: []
+    from-on-end: []
     
     make-effect: does [
-        ani-bl: copy/part to-block effect 14
+        ani-bl: copy/part to-block effect 22
         append ani-bl [ease: none] 
         ani-bl/val1: v1
         ani-bl/val2: v2
@@ -383,6 +394,10 @@ context [
         ani-bl/loop-count: 1
         ani-bl/bi-dir: off
         ani-bl/ease: any [:ease-v to get-word! "ease-linear"]
+        ani-bl/on-start: from-on-start 
+        ani-bl/on-time: from-on-time
+        ani-bl/on-end: from-on-end
+        ani-bl/started: false
     ]    
     
     rescale: does [
@@ -451,7 +466,15 @@ context [
     
     from: [
         ['from p1: [[set v1 keep word!] | value keep (scaled) (v1: scaled)]
-         'to p2: from-value] (
+         'to p2: from-value
+         opt [
+             any [
+                 ['on-start set from-on-start block!] 
+               | ['on-time  set from-on-time  block!]
+               | ['on-end   set from-on-end   block!]
+             ]
+         ]
+        ] (
             make-effect
             ani-bl/loop-count: loop-n
             cur-effect: make effect ani-bl
