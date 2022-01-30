@@ -149,8 +149,12 @@ process-timeline: has [
             ][
                clear p: get to-path reduce [to-word key 1]
                append p reduce ['pen v/color]
-               append p v/end-block 
-               remove/key morph-path-map key
+               append p v/end-block
+               ;print ["morph end" v/expires t]               
+               if all [v/expires > 0 t > v/expires] [
+                   clear p
+                   remove/key morph-path-map key
+               ]    
             ]
         ]
     ]
@@ -1175,7 +1179,7 @@ context [
         put morph-path-map target compose/deep [
             start: (start-v)
             duration: (dur-v)
-            expires: 0  ; 
+            expires: (morph-path-end)
             block-1: [(lines-1)]
             block-2: [(lines-2)]
             end-block: [(p2)]
