@@ -8,26 +8,7 @@ st-time: now/precise
 pascal: none
 text-data: make map! 20
 draw-blocks-data: make map! 20 
-
-random/seed now
-
-effect: make object! [
-    val1:          0.0          ; starting value to change
-    val2:          1.0          ; end value
-    start:         0.0          ; starting time
-    dur:           1.0          ; duration of the animation
-    delay:         0.0          ; delay between successive subanimations
-    loop-count:    1            ; repetitions of the effect in time
-    bi-dir:        off          ; does the animation runs backwards too? 
-    started:       false        
-    on-start: []
-    on-time:  []
-    on-end:   []
-    ease:          func [x][x]  ; easing function
-]
-
 timeline: make map! 100 ; the timeline of effects key: value <- id: effect
-                        ; there should be a record for each face!
 time-map: make map! 100 ; for the named animations
 text-fx-map: make map! 10
 particles-map: make map! 10
@@ -36,6 +17,24 @@ curve-fx-init: make block! 10
 scaled-fonts: copy []
 stroke-path-map: make map! 10
 morph-path-map: make map! 10
+dummy: 0
+
+random/seed now
+
+effect: make object! [
+    val1:       0.0          ; starting value to change
+    val2:       1.0          ; end value
+    start:      0.0          ; starting time
+    dur:        1.0          ; duration of the animation
+    delay:      0.0          ; delay between successive subanimations
+    loop-count: 1            ; repetitions of the effect in time
+    bi-dir:     off          ; does the animation runs backwards too? 
+    started:    false        ; has the animation started?
+    on-start:   []           ; actor   
+    on-time:    []           ; actor
+    on-exit:    []           ; actor  
+    ease:       func [x][x]  ; easing function
+]
 
 text-effect: make object! [
     id: none        ; 
@@ -63,54 +62,59 @@ process-timeline: has [
         w: val/2
         if w/val1 <> w/val2 [tween val/1 w/val1 w/val2 w/start w/dur t :w/ease]
         
-        if all [not w/started t > w/start][
-            do w/on-start
-            w/started: true
-        ]
-        
-        if t > (w/start + w/dur) [
-            d: w/dur
-            if w/bi-dir [d: d * 2]        ; two-way loop - reset after 2 x duration
-               either w/loop-count = -1 [    ; loop forever
-                   w/start: w/start + d
-               ][ 
-                   either w/loop-count > 1 [
-                    w/loop-count: w/loop-count - 1
+        if t > w/start[
+            unless w/started [
+                do w/on-start
+                w/started: true
+            ]
+            either t < (w/start + w/dur) [
+                bind w/on-time context compose [time: (t)]  ; makes elapsed time visible to the caller as "time"
+                do w/on-time
+            ][
+                d: w/dur
+                if w/bi-dir [d: d * 2]        ; two-way loop - reset after 2 x duration
+                either w/loop-count = -1 [    ; loop forever
                     w/start: w/start + d
+                ][ 
+                    either w/loop-count > 1 [
+                        w/loop-count: w/loop-count - 1
+                        w/start: w/start + d
                     ][
-                        remove/key timeline key 
+                        do w/on-exit
+                        remove/key timeline key
+                    ]    
                 ]                    
             ]
-        ]
+        ]    
     ]
     
     foreach [key effect] particles-map [
         proto: effect/proto
-          if t >= proto/start [
-              either t <= (proto/start + proto/duration) [
+        if t >= proto/start [
+            either t <= (proto/start + proto/duration) [
                 particle/update-particles to-word key
-               ][
-                    if t > proto/expires [
-                        clear at get key 3
-                        remove/key particles-map key
-                    ]
-               ]
+            ][
+                if t > proto/expires [
+                    clear at get key 3
+                    remove/key particles-map key
+                ]
+            ]
         ]
     ]
     
     foreach [key v] curve-fx-map [
         target: 0.0
-        if t >= v/2 [
-            either t <= (v/2 + v/3 * 1.01) [
-                tween 'target v/4 v/5 v/2 v/3 t get v/6
-                switch/default last v [
-                    text  [text-along-curve v/1 target]
-                    block [block-along-curve v/1 target]
+        if t >= v/start [
+            either t <= (v/start + v/dur * 1.01) [
+                tween 'target v/v1 v/v2 v/start v/dur t get v/ease
+                switch/default v/type [
+                    text  [text-along-curve v/id target]
+                    block [block-along-curve v/id target]
                 ][print "Unsupported effect type - must be text or block"]
             ][
-                if all [v/7 <> 0 t > v/7] [
+                if all [v/expires <> 0 t > v/expires] [
                    remove/key curve-fx-map key
-                   clear pick get v/1 1  ; clear the effect's draw block
+                   clear first get v/id  ; clear the effect's draw block
                 ]   
             ]               
         ]
@@ -193,19 +197,24 @@ particle: context [
     ] 
 
     particle-base: make object! [
-        number:    100                  ; how many particles
-        start:     1.0                  ; start time of the effect
-        duration:  5.0                  ; duration of the effect
-        emitter:   [0x100 200x100]      ; where particles are born - a box
-        direction: 90.0                 ; degrees
-        dir-rnd:   0.0                  ; random spread of direction, symmetric
-        speed:     1.0                  ; particle base speed
-        speed-rnd: 0.2                  ; randomization of speed for each particle, always added
-        shapes:    speck                ; a block of draw blocks (shapes to be used to render particles)
-        forces:    []                   ; what forces affect the particles motion - a block of words
-        limits:    []                   ; conditions for particle to be respawned - based on coordinates 
+        number:     100                  ; how many particles
+        start:      1.0                  ; start time of the effect
+        duration:   5.0                  ; duration of the effect
+        emitter:    [0x100 200x100]      ; where particles are born - a box
+        direction:  90.0                 ; degrees
+        dir-rnd:    0.0                  ; random spread of direction, symmetric
+        speed:      1.0                  ; particle base speed
+        speed-rnd:  0.2                  ; randomization of speed for each particle, always added
+        shapes:     speck                ; a block of draw blocks (shapes to be used to render particles)
+        forces:     []                   ; what forces affect the particles motion - a block of words
+        limits:     []                   ; conditions for particle to be respawned - based on coordinates 
         new-coords: []                  ; where reposition the particle
+        started:    false
+        finished:   false
         expires:    0                   ; when to clear the particle draw block
+        on-start:   []
+        on-time:    []
+        on-exit:    []
     ]
     
     create-particle: func [
@@ -247,7 +256,7 @@ particle: context [
                     c: false
                     if any [(proto/limits)] [
                         c: true
-                         (proto/new-coords)
+                        (proto/new-coords)
                     ] 
                     reduce [c x y]
                 ]
@@ -379,9 +388,9 @@ context [
     path-id: none
     path-block: none
     frame-rate: 1
-    from-on-start: []
-    from-on-time: []
-    from-on-end: []
+    from-on-start: copy []
+    from-on-time: copy []
+    from-on-exit: copy []
     
     make-effect: does [
         ani-bl: copy/part to-block effect 22
@@ -396,9 +405,27 @@ context [
         ani-bl/ease: any [:ease-v to get-word! "ease-linear"]
         ani-bl/on-start: from-on-start 
         ani-bl/on-time: from-on-time
-        ani-bl/on-end: from-on-end
+        ani-bl/on-exit: from-on-exit
         ani-bl/started: false
-    ]    
+    ]   
+
+    clear-anim-actors: does [
+        from-on-start: copy []
+        from-on-time: copy  []
+        from-on-exit: copy  []
+    ]
+    
+    text-fx-actors: does [
+        v1: v2: 0
+        make-effect  ; for a dummy tween that will manage actors
+        target: to-word rejoin [txt-w cur-idx]
+        cur-idx: cur-idx + 1
+        cur-target: 'dummy
+        cur-effect: make effect ani-bl
+        cur-effect/dur: delay-v * from-count + dur-v
+        put timeline target reduce [cur-target cur-effect]
+        clear-anim-actors
+    ]
     
     rescale: does [
         if all [
@@ -461,19 +488,21 @@ context [
         p: opt 'two-way (if p/1 = 'two-way [bi-dir: on])
         opt ['forever (loop-n: -1) | set loop-n integer! 'times ]
     ]
+    
+    anim-actors: [ 
+        any [
+            ['on-start set from-on-start block!] 
+          | ['on-time  set from-on-time  block!]
+          | ['on-exit  set from-on-exit  block!]
+        ]      
+    ]
    
     from-value: [set v2 word! | value (v2: scaled)]
     
     from: [
         ['from p1: [[set v1 keep word!] | value keep (scaled) (v1: scaled)]
-         'to p2: from-value
-         opt [
-             any [
-                 ['on-start set from-on-start block!] 
-               | ['on-time  set from-on-time  block!]
-               | ['on-end   set from-on-end   block!]
-             ]
-         ]
+         'to p2: from-value (clear-anim-actors)
+        opt anim-actors
         ] (
             make-effect
             ani-bl/loop-count: loop-n
@@ -485,13 +514,15 @@ context [
                 ani-bl/dur: ani-bl/dur / 2.0
                 ani-bl/bi-dir: on
                 cur-effect: make effect ani-bl
-                put timeline to-string trgt reduce [trgt cur-effect]
+                cur-effect/on-exit: copy []  ; on-exit will trigger only at the backward tween
+                put timeline to-string trgt reduce [trgt cur-effect]  ; forward
                 ani-bl/start: start-v + ani-bl/dur
                 tmp: ani-bl/val1
                 ani-bl/val1: ani-bl/val2
                 ani-bl/val2: tmp
-                cur-effect: make effect ani-bl
-                put timeline rejoin [form trgt "_r"] reduce [trgt cur-effect]
+                cur-effect: make effect ani-bl 
+                cur-effect/on-start: copy []  ; on-start wiil be trigegered only for the forward tween 
+                put timeline rejoin [form trgt "_r"] reduce [trgt cur-effect] ; backward
             ][
                 put timeline to-string trgt reduce [trgt cur-effect]
             ]    
@@ -500,25 +531,18 @@ context [
          )
     ]
     
-    ; non Draw parameters and -fx parameters - too similar to form - must be merged!
-    ; I need to automatically scale up the font sizes !!!
-    from-fx: [
-        ['from p1: from-value 'to p2: from-value] (   
+    param: [
+        'parameter (clear-anim-actors)
+        set t [path! | word!] (cur-target: t cur-idx: cur-idx + 1)
+        'from set v1 skip 'to set v2 skip (
+            make-effect        
             val-ofs: val-ofs + 1
-            ani-bl/val1: p1/1
-            ani-bl/val2: p2/1
             cur-effect: make effect ani-bl
             cur-effect/start: start-v
             start-v: start-v + delay-v
             put timeline rejoin [to-string cur-target cur-idx] reduce [cur-target cur-effect]
             from-count: from-count + 1
-        )
-    ]
-         
-    param: [
-        'parameter
-        set t [path! | word!] (cur-target: t cur-idx: cur-idx + 1)
-        from-fx
+        )    
     ]
     
     word: [                             ; Draw commands and markers for them
@@ -543,16 +567,16 @@ context [
     ]
     
     particles: [
-        'particles
-        (particles-end: 0)
+        'particles (
+            particles-end: 0
+            clear-anim-actors
+        )
         set p-id word!
         set p-proto word! 
         (
            prt: get p-proto
            append prt compose [start: (start-v)]
            append prt compose [duration: (dur-v)]
-           start-v: start-v + delay-v
-           from-count: from-count + 1
         )
         opt [
                 'expires [
@@ -560,23 +584,36 @@ context [
                   | 'never
                 ]
                 (if particles-end > 0 [append prt compose [expires: (max start-v + dur-v start-v + particles-end)]])
-            ]
+        ]
+        opt anim-actors
+        (
+           v1: v2: 0
+           make-effect  ; for a dummy tween that will manage actors
+           cur-target: 'dummy
+           cur-effect: make effect ani-bl
+           put timeline p-id reduce [cur-target cur-effect]
+           start-v: start-v + delay-v
+           from-count: from-count + 1
+        )   
         keep (particle/init-particles p-id make particle/particle-base prt cur-idx)
     ]
     
     curve-fx: [
         [
-            'curve-fx
-            (
+            'curve-fx (
                 v2: none
                 curve-fx-end: 0
                 ease-v: any [:ease-v to get-word! "ease-linear"]
+                ;from-on-start: []
+                ;from-on-time: []
+                ;from-on-exit: []
+                clear-anim-actors
             )
-            set crv-id word! ;(probe crv-id)
+            set crv-id word!
             set crv-data [block! | word!] 
             [
                 ['from set v1 float! 'to set v2 float!]
-                | set v1 float! (probe v1)
+                | set v1 float!
             ]
             opt [
                 'expires [
@@ -584,6 +621,12 @@ context [
                   | 'never
                 ]  
             ]
+            opt anim-actors (
+                make-effect  ; for a dummy tween that will manage actors
+                cur-target: 'dummy
+                cur-effect: make effect ani-bl
+                put timeline crv-id reduce [cur-target cur-effect]
+            )
         ]
         (
             v2: any [v2 v1]
@@ -597,16 +640,23 @@ context [
                 draw-data: block-along-curve/init crv-id v1 s-crv-data get args/curve args/space-x
                 fx-type: 'block
             ]
-            put curve-fx-map crv-lbl: to-word rejoin [crv-id "-" cur-idx] reduce [
-                crv-id 
-                start-v
-                dur-v
-                v1
-                v2
-                :ease-v
-                curve-fx-end
-                fx-type
+            put curve-fx-map crv-lbl: to-word rejoin [crv-id "-" cur-idx] compose [
+                id: (crv-id)
+                start: (start-v)
+                dur: (dur-v)
+                v1: (v1)
+                v2: (v2)
+                ease: (:ease-v)
+                expires: (curve-fx-end)
+                type: (fx-type)
+                ;on-start: []
+                ;on-time:  []
+                ;on-exit:  []
             ]
+            ;curve-fx-map/:crv-lbl/on-start: from-on-start
+            ;curve-fx-map/:crv-lbl/on-time: from-on-time
+            ;curve-fx-map/:crv-lbl/on-exit: from-on-exit
+            
             cur-idx: cur-idx + 1            
             start-v: start-v + delay-v
             from-count: from-count + 1
@@ -754,7 +804,10 @@ context [
     from-text: [['from set v1 value 'to set v2 value] | set v1 value (v2: v1)]
     
     text-fx: [
-        'text-fx (new-fx: false)
+        'text-fx (
+            new-fx: false
+            clear-anim-actors
+        )
         [set txt-w word! | object!] (
             t-obj: get txt-w
             unless text-data/(t-obj/id) [
@@ -768,11 +821,31 @@ context [
         )
         keep (either new-fx [to-set-word t-obj/id][[]])
         keep (either new-fx [fx-data][[]]) (new-fx: false)
-
-        opt [['text-scale from-text (val1: reduce [v1 v2]) from-text (val2: reduce [v1 v2])]
-            (scale-text-fx t-obj val1 val2 start-v)]
-        opt ['text-move set v1 value (text-move t-obj v1 start-v)]
-        opt ['text-color from-text (text-color t-obj v1 v2 start-v)]
+        any [ 
+        opt [
+            'text-scale
+            from-text (val1: reduce [v1 v2])
+            from-text (val2: reduce [v1 v2])
+            opt anim-actors (
+                text-fx-actors
+                scale-text-fx t-obj val1 val2 start-v
+            )    
+        ]
+        opt [
+            'text-move
+            set v1 value (text-move t-obj v1 start-v)
+            opt anim-actors (
+                text-fx-actors
+            )
+        ]
+        opt [
+            'text-color
+            from-text (text-color t-obj v1 v2 start-v)
+            opt anim-actors (
+                text-fx-actors
+            )    
+        ]
+        ]
         opt [
             'expires [
             [
@@ -781,7 +854,9 @@ context [
             ]
           | 'never (text-fx-map/(t-obj/id): 0)
           ]
-        ] 
+        ]
+        
+        
     ]
     
     get-lines: function [
@@ -1019,6 +1094,7 @@ context [
         'stroke-path (
             ease-v: any [:ease-v to get-word! "ease-linear"]
             stroke-path-end: 0
+            clear-anim-actors
         )
         set path-id word! (path-block: make block! 50)
         path 
@@ -1032,7 +1108,14 @@ context [
             ]
           | 'never
           ]
-        ](
+        ]
+        opt anim-actors (
+            v1: v2: 0
+            make-effect  ; for a dummy tween that will manage actors
+            cur-target: 'dummy
+            cur-effect: make effect ani-bl
+            put timeline path-id reduce [cur-target cur-effect]
+            
             path-id: to-word rejoin [path-id "-" cur-idx]
             new-block: break-path path-id path-block width color  ; how many segments? 200 
             start-v: start-v + delay-v
@@ -1209,6 +1292,7 @@ context [
             path-block: make block! 100
             morph-path-end: 0
             show-first: false
+            clear-anim-actors
         )
         path (path1: copy path-block clear path-block)
         'into
@@ -1221,9 +1305,17 @@ context [
           | 'never
             ]
         ]
-        (
+        opt anim-actors (
+            v1: v2: 0
+            make-effect  ; for a dummy tween that will manage actors
+
             target: to-word rejoin ["morph-" cur-idx]
             cur-idx: cur-idx + 1
+            
+            cur-target: 'dummy
+            cur-effect: make effect ani-bl
+            put timeline target reduce [cur-target cur-effect]
+            
             linearize-paths target path1 path2
         )
         keep (to-set-word target)
@@ -1275,7 +1367,7 @@ context [
         ]    
     ]
 
-    set 'parse-anim func [
+    set 'animate func [
         {Takes a block of draw and animate commands and generates a draw block
         for the target face and a timeline for the animations}
         spec   [block!]               {A block of draw and animate commands}
@@ -1287,6 +1379,7 @@ context [
         ;probe draw-block
         ;probe text-fx-map
         ;probe ani-bl
+        ;probe timeline
         target/draw: draw-block
        
         actors: make block! 10
@@ -1851,5 +1944,3 @@ block-along-curve: function [
         ]
     ]
 ]
-
-; tests were moved to separate files
