@@ -21,12 +21,16 @@ path-block: compose [
        
     start 1 duration 2 ease :ease-in-out-quad
     stroke-path test (path) width 15 color (papaya - 10.10.10) expires after 4
-    
+	on-start [print "Starting path1"]
+    on-exit [print "Ending path1"]
+	on-time [canvas/parent/text: form time]
     start 1 duration 2
     stroke-path test2 (path) width 5 color (yello + 10.10.10) expires after 3
-]
+	on-exit [print "Ending path2"]
+] 
+print "Stroke-path test"
 
 view compose [
     canvas: base 600x400 beige rate 60
-    on-create [parse-anim path-block face]
+    on-create [animate path-block face]
 ]
