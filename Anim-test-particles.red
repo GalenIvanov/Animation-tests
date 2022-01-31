@@ -88,20 +88,20 @@ d: [
     
     start 1.0 duration 5.0 delay 2.0
     
-    particles test motes expires after 6
+    particles test motes expires after 6 on-start [print "Motes"] on-exit [print "Motes finished"]
     line-width 8 pen white fill-pen transparent
     box 50x50 150x350
     
     pen transparent fill-pen papaya
-    particles vulcano burst expires after 6
+    particles vulcano burst expires after 6 on-start [print "Vulcano"] on-exit [print "Vulcano finished"]
     fill-pen transparent pen papaya  circle 300x200 125
     
     font fnt
-    particles fleet rocket expires after 6
+    particles fleet rocket expires after 6 on-start [print "Rockets"] on-exit [print "Rockets finished"]
     pen sky box 460x50 570x350
 ]
 
 view [
     canvas: base 600x400 rate 120
-    on-create [parse-anim d face]
+    on-create [animate d face]
 ]
