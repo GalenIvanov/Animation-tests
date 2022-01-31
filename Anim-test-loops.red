@@ -16,7 +16,7 @@ demo-font: make font! [size: 16]
  
 anim: compose/deep [
     line-width 3 fill-pen white
-    start 0.0 duration 2.0 loop forever
+    start 0.0 duration 3.0 loop forever
     translate from 0x0 to -40x-40 [(bg-grid)]
     
     font demo-font
@@ -25,16 +25,17 @@ anim: compose/deep [
     translate from 600x0 to 0x0 [
         text 20x20 "loop 3 times"
         box 230x20 580x50
-        start 2.0 after fly-in starts duration 2.0 loop 3 times
-        translate from 0x0 to 320x0
+        start 2.0 after fly-in starts duration 2.0 loop 3 times 
+        translate from 0x0 to 320x0 on-exit [print "One-way finished"] on-start [print "One-way started"]
         box 235x25 255x45
     ]
     start 0.5 after fly-in starts duration 2.0 ease :ease-in-out-elastic    
     translate from 600x0 to 0x0 [
         text 20x60 "loop two-way 3 times"
         box 230x60 580x90
-        start 2.0 after fly-in starts duration 2.0 loop two-way 3 times
-        translate from 0x0 to 320x0
+        start 2.0 after fly-in starts duration 2.0 loop two-way 2 times
+        translate from 0x0 to 320x0 on-exit [print "Two-way finished"] on-start [print "Two-way started"]
+
         box 235x65 255x85
     ]
 
@@ -47,5 +48,5 @@ anim: compose/deep [
 
 view [
     base 600x180 beige rate 60
-    on-create [parse-anim anim face]
+    on-create [animate anim face]
 ]
