@@ -95,7 +95,7 @@ scene: compose/deep [
     ]
     
     start 18.0 duration 2.0 ease :ease-in-out-cubic
-    fill-pen from 0.0.0.255 to 0.0.0.0
+    fill-pen from 0.0.0.255 to 0.0.0.0 on-exit [quit]
     box 0x0 600x400
 ]
 
@@ -103,5 +103,5 @@ print "start"
 
 view [
     canvas: base 600x400 rate 120
-    on-create [parse-anim scene face]
+    on-create [animate scene face]
 ]
