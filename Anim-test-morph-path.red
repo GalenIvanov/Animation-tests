@@ -16,19 +16,6 @@ n-gon: function [n c r p][
     ]
 ]
 
-;path1: n-gon 13 200x200 140 0
-
-path11: [
-    line 100x100 300x100
-    arc 300x150 50x50 270 90 
-    line 350x150 350x250
-    arc 300x250 50x50 0 90
-    line 300x300 100x300 
-    arc 100x250 50x50 90 90
-    line 50x250 50x150
-    arc 100x150 50x50 180 90
-]
-
 path1: [
     arc 200x200 180x180 180 180
     arc 200x200 180x180 0 180
@@ -42,22 +29,24 @@ path3: [
     line 100x250 100x100
 ]
 
-path4: [
-    line 180x50 220x50 220x350 180x350 180x50
-]
-
 morph-path-block: compose/deep [
     pen red
     line-width 3
     line-cap round
     start 2 duration 2 ease :ease-in-out-quint
     morph-path (path1) into (path3) visible true expires after 2
+	on-start [print "morph 1"]
+	on-exit [print "Ending morph 1"]
+	on-time [time-t/data: round/to time 0.01]
     start 4 duration 2 ease :ease-in-out-quint
-    pen from red to white on-start [print "Starting color tween!"]
-    morph-path (path3) into (path2) visible false
+    pen from red to white on-start [print "Starting color tween!"] on-exit [quit]
+    morph-path (path3) into (path2) visible false on-start [print "Morph 2"]
 ]
+
+print "Morph-path test"
 
 view compose [
     canvas: base 400x400 beige rate 60
-    on-create [parse-anim morph-path-block face]
+    on-create [animate morph-path-block face]
+	time-t: text "0.0"
 ]
