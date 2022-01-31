@@ -6,7 +6,7 @@ Red [
 
 #include %Animate.red
 
-fnt1: make font! [name: "Verdana" size: 110 color: 255.255.255.0]
+fnt1: make font! [name: "Verdana" size: 11 color: 255.255.255.0]
 
 anim-block: compose [
     pen white fill-pen sky line-width 2
@@ -34,7 +34,8 @@ anim-block: compose [
     pen papaya fill-pen yello
     line line 300x30 300x450
     line line 550x30 550x450
-    translate from 0x0 to 800x0 [
+    translate from 0x0 to 800x0 on-time [elapsed/3: form round/to time 0.01]
+	[
         line 200x45 200x450
         elapsed: text 200x25 "0.00"
     ]
@@ -58,10 +59,5 @@ anim-block: compose [
 view [
     title "Animate - markers"
     canvas: base 900x450 black rate 120
-    on-create [
-        parse-anim anim-block face 
-        append body-of :face/actors/on-time [
-            elapsed/3: to-string round/to to float! difference now/precise st-time 0.1
-        ]
-    ]    
+    on-create [animate anim-block face]    
 ]
