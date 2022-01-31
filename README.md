@@ -10,6 +10,7 @@ There are many things that can be added to the animation system:
 - stop
 - rewind
 - ffd
+- change animation speed
 
 ## Text-fx to work on specified parts of text
 Now it works on all components, depending on the mode - lines, words or characters. It would be good to specify which ones to animate. Possible parameters: index, range, or block of indices.
