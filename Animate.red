@@ -331,6 +331,12 @@ do-not-scale: [
     [transform 4]       ; scale y - I need to account for <center> where necessary
 ]
 
+draw-words: split {line triangle box polygon circle ellipse arc curve spline
+image text font pen fill-pen linear radial diamond pattern bitmap
+line-width line-join line-cap anti-alias matrix reset-matrix
+invert-matrix push rotate scale translate skew transform from to
+clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [space newline]
+
 autoscale: function [
     {Multiplies by 10 the linear sizes of draw block commands
     Used for subpixel precision,
@@ -387,7 +393,7 @@ context [
     new-fx: false
     path-id: none
     path-block: none
-    frame-rate: 1
+    ;frame-rate: 1
     from-on-start: copy []
     from-on-time: copy []
     from-on-exit: copy []
@@ -496,11 +502,25 @@ context [
           | ['on-exit  set from-on-exit  block!]
         ]      
     ]
+    
+    word-val: [
+        w: word!
+        if (not find draw-words lowercase form w/1) 
+    ]
+    
+    keep-word-val: [
+        w: word!
+        if (not find draw-words lowercase form w/1) 
+        :w keep word!
+    ]
    
-    from-value: [set v2 word! | value (v2: scaled)]
+    ;from-value: [set v2 word! | value (v2: scaled)]
+    from-value: [set v2 word-val | value (v2: scaled)]
     
     from: [
-        ['from p1: [[set v1 keep word!] | value keep (scaled) (v1: scaled)]
+        ;['from p1: [[set v1 keep word!] | value keep (scaled) (v1: scaled)]
+        ; 'to p2: from-value (clear-anim-actors)
+        ['from p1: [[set v1 keep-word-val ] | value keep (scaled) (v1: scaled)]
          'to p2: from-value (clear-anim-actors)
         opt anim-actors
         ] (
@@ -1323,6 +1343,64 @@ context [
         
     ]
     
+    spread: ['pad | 'repeat | 'reflect]
+    tile-mode:  ['tile | 'flip-x | 'flip-y | 'flip-xy | 'clamp]
+    
+    pen-scale-up: [
+        keep ('scale)
+        keep (to-lit-word "fill-pen")
+        keep (10.0)
+        keep (10.0)
+    ]
+
+    p-linear: [
+        keep 'linear 
+        some [(val-ofs: val-ofs + 1) from | keep [tuple! | word-val]]
+        0 3 [from | value keep (scaled)] ; offset ; start ; end
+        opt keep spread ;spread method
+    ]
+    
+    p-radial: [
+        keep 'radial
+        some [(val-ofs: val-ofs + 1) from | keep [tuple! | word-val]]
+        0 4 [from | value keep (scaled)] ; offset ; center ; radius ; focal
+        opt keep spread  ;spread method
+    ]
+    
+    p-diamond: [
+        keep 'diamond 
+        some [(val-ofs: val-ofs + 1) from | keep [tuple! | word-val]]
+        0 4 [from | value keep (scaled)] ; offset ; uppper ; lower ; focal
+        opt keep spread  ;spread method
+    ]
+    
+    p-pattern: [
+        keep 'pattern
+        value keep (scaled) ; size
+        0 2 [from | value keep (scaled)] ; start; end
+        opt keep tile-mode  ;spread method
+        into anim-rule         ; commands
+    ]
+    
+    p-bitmap: [
+        keep 'bitmap 
+        p-img: keep word!
+        0 2 [keep pair!]     ; start; end
+        opt keep tile-mode  ;spread method
+        pen-scale-up ; scale up 10x because of the initial scal 0.1
+    ]
+    
+    pen-rule: [
+        pen-mark: ['pen | 'fill-pen] (
+            cur-target: rejoin [pen-mark/1 cur-idx]
+            val-ofs: 2
+            cur-idx: cur-idx + 1
+        )
+        keep (to-set-word cur-target)
+        :pen-mark keep word!
+        [from | [keep tuple!] | keep-word-val | p-linear | p-radial | p-diamond | p-pattern | p-bitmap]
+    ]
+    
     command: [
         (time-id: none)
         opt [set time-id [set-word! ahead 'start]]   ; named animation
@@ -1333,33 +1411,24 @@ context [
         opt anim-loop
     ]
     
-    ; currently no set-word! should be in the block after shape
-    ; that's why it is not thoroughly processed but only scaled 10x
-    ; that means no animations are possible for the shape commands
-    ; inside the block
-    ; Fixed by @dockimbel - need to test it !!!
-    shape: [
-        ['shape set shape-block block!]
-        keep ('shape) keep (autoscale shape-block)
-    ]
-    
     anim-rule: [
         collect [
             some [
                 command
                 opt [
                     param
-                  | shape    
                   | text-fx
                   | particles
                   | curve-fx
                   | stroke-path
                   | morph-path
+                  | pen-rule
                   | word            ; Draw command
                     ; word parameter, like font or image value
                     opt keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)
                     ; parameters, incl. animated ones
                     any [[from | value keep (scaled) ](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
+                    opt keep 'closed ; for splines and arcs
                   | into anim-rule  ; block 
                 ]                                      
               
@@ -1373,9 +1442,13 @@ context [
         spec   [block!]               {A block of draw and animate commands}
         target [word! path! object!]  {A face to render the draw block and animations}
     ][
-        frame-rate: target/rate
+        ;frame-rate: target/rate
         draw-block: parse spec anim-rule
-        insert draw-block compose [(to set-word! "ani-start") scale 0.1 0.1 line-width 10]
+        insert draw-block compose [
+            (to set-word! "ani-start") 
+            scale 0.1 0.1 
+            line-width 10
+        ]
         ;probe draw-block
         ;probe text-fx-map
         ;probe ani-bl
@@ -1512,6 +1585,8 @@ tween: function [
     if all [t >= start t <= end-t][
         either t < (start + duration) [
             either tuple? val1 [
+                if 3 = length? val1 [val1: val1 + 0.0.0.0]
+                if 3 = length? val2 [val2: val2 + 0.0.0.0]
                 val: val1
                 repeat n length? val1 [
                     val/:n: to integer! val1/:n + (val2/:n - val1/:n * ease t - start / duration) % 256
