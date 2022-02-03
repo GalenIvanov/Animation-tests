@@ -316,26 +316,31 @@ particle: context [
 ]
 
 do-not-scale: [
-    ; this list might not be complete!         
+    ; this list might not be complete! 
     [circle 4]
     [circle 5] 
     [arc 4]
     [arc 5]
-    [rotate 2]          ; assuming no 'pen or 'fill-pen !!!   
-    [scale 2]           ; assuming no 'pen or 'fill-pen !!!
-    [scale 3]           ; assuming no 'pen or 'fill-pen !!!
+    [rotate 2]
+    [scale 2]
+    [scale 3]           
     [skew 2]
     [skew 3]
-    [transform 2]       ; rotate  - I need to account for <center> where necessary
-    [transform 3]       ; scale x - I need to account for <center> where necessary
-    [transform 4]       ; scale y - I need to account for <center> where necessary
+    [transform 3]
+    [transform 4]
 ]
 
 draw-words: split {line triangle box polygon circle ellipse arc curve spline
 image text font pen fill-pen linear radial diamond pattern bitmap
 line-width line-join line-cap anti-alias matrix reset-matrix
-invert-matrix push rotate scale translate skew transform from to
+invert-matrix push rotate scale translate skew transform
 clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [space newline]
+
+draw-cmd: head clear back tail collect [
+    foreach w difference draw-words split "linear radial diamond pattern bitmap" sp [
+        keep to-lit-word w keep '|
+    ]
+]
 
 autoscale: function [
     {Multiplies by 10 the linear sizes of draw block commands
@@ -440,7 +445,7 @@ context [
         ] [scaled: scaled * 10]
     ]
     
-    value: [set scaled [float! | tuple! | string! | object! | image! | integer! | pair!] (rescale)]
+    value: [set scaled [float! | tuple! | string! | object! | integer! | pair!] (rescale)]
     
     start: [
         [
@@ -514,15 +519,13 @@ context [
         :w keep word!
     ]
    
-    ;from-value: [set v2 word! | value (v2: scaled)]
     from-value: [set v2 word-val | value (v2: scaled)]
     
     from: [
-        ;['from p1: [[set v1 keep word!] | value keep (scaled) (v1: scaled)]
-        ; 'to p2: from-value (clear-anim-actors)
-        ['from p1: [[set v1 keep-word-val ] | value keep (scaled) (v1: scaled)]
-         'to p2: from-value (clear-anim-actors)
-        opt anim-actors
+        [
+            'from p1: [[set v1 keep-word-val ] | value keep (scaled) (v1: scaled)]
+            'to p2: from-value (clear-anim-actors)
+            opt anim-actors
         ] (
             make-effect
             ani-bl/loop-count: loop-n
@@ -565,15 +568,28 @@ context [
         )    
     ]
     
-    word: [                             ; Draw commands and markers for them
-        opt set user-target set-word!
-        p: word! (                
+    mark-keep-word: [
+        w1: to [draw-cmd | end]
+        w2: [ 
+            [ 
+                if (any [user-target find copy/part w1 w2 'from])
+                keep (to-set-word cur-target)
+                :p keep word!
+                (user-target: none)
+            ]
+          | :p keep word!
+        ]
+    ]
+    ; Draw commands and markers for them
+    word: [                             
+        opt [set user-target set-word!]
+        p: word!
+        (
             val-ofs: 1
             val-idx: 1
             target: p/1
             cur-target: any [user-target rejoin [p/1 cur-idx: cur-idx + 1]]
-            if find [image font linear radial diamond pattern bitmap] p/1 [val-ofs: val-ofs + 1]
-            user-target: none
+            ;if find [image font linear radial diamond pattern bitmap] p/1 [val-ofs: val-ofs + 1]
             if 'font = target [
                 fnt: get p/2
                 unless find scaled-fonts p/2 [
@@ -582,8 +598,7 @@ context [
                 ]    
             ]
         )
-        :p keep (to-set-word cur-target)
-        keep word!
+        mark-keep-word
     ]
     
     particles: [
@@ -624,9 +639,6 @@ context [
                 v2: none
                 curve-fx-end: 0
                 ease-v: any [:ease-v to get-word! "ease-linear"]
-                ;from-on-start: []
-                ;from-on-time: []
-                ;from-on-exit: []
                 clear-anim-actors
             )
             set crv-id word!
@@ -669,14 +681,8 @@ context [
                 ease: (:ease-v)
                 expires: (curve-fx-end)
                 type: (fx-type)
-                ;on-start: []
-                ;on-time:  []
-                ;on-exit:  []
             ]
-            ;curve-fx-map/:crv-lbl/on-start: from-on-start
-            ;curve-fx-map/:crv-lbl/on-time: from-on-time
-            ;curve-fx-map/:crv-lbl/on-exit: from-on-exit
-            
+           
             cur-idx: cur-idx + 1            
             start-v: start-v + delay-v
             from-count: from-count + 1
@@ -1068,17 +1074,17 @@ context [
                     bezier [
                         bezier-len: data-len/1
                         bezier-pts: copy/part data seq
-                        lookup-len: bezier-lengths bezier-pts 500
+                        lookup-len: bezier-lengths bezier-pts 300
                         p1: data/1
                         if (t: carry / len) > 0.01 [ ;t is the position on the curve from 0.0 to 1.0
-                            keep reduce ['pen (color) 'line ]
-                            keep bezier-n bezier-pts bezier-lerp carry / len lookup-len
+                            keep reduce ['pen (color) 'line p1]
+                            keep p1: bezier-n bezier-pts bezier-lerp carry / len lookup-len
                             bezier-len: bezier-len - carry
                         ]
                         
                         delta-t: seg-len / bezier-len
                         while [bezier-len > seg-len][
-                            keep reduce ['pen  color 'line p1]
+                            keep reduce ['pen color 'line p1]
                             t: t + delta-t
                             keep p1: bezier-n bezier-pts bezier-lerp t lookup-len
                             bezier-len: bezier-len - seg-len
@@ -1328,19 +1334,15 @@ context [
         opt anim-actors (
             v1: v2: 0
             make-effect  ; for a dummy tween that will manage actors
-
             target: to-word rejoin ["morph-" cur-idx]
             cur-idx: cur-idx + 1
-            
             cur-target: 'dummy
             cur-effect: make effect ani-bl
             put timeline target reduce [cur-target cur-effect]
-            
             linearize-paths target path1 path2
         )
         keep (to-set-word target)
         keep (either show-first [path1][[]])
-        
     ]
     
     spread: ['pad | 'repeat | 'reflect]
@@ -1390,15 +1392,82 @@ context [
         pen-scale-up ; scale up 10x because of the initial scal 0.1
     ]
     
+    pens: ['pen | 'fill-pen]
+    
     pen-rule: [
-        pen-mark: ['pen | 'fill-pen] (
-            cur-target: rejoin [pen-mark/1 cur-idx]
-            val-ofs: 2
+        pen-mark: opt [set user-target set-word!]
+        pens (cur-target: rejoin [pen-mark/1 cur-idx])
+        :pen-mark
+        word (val-ofs: 2)
+        [from | [keep tuple!] | keep-word-val | p-linear | p-radial | p-diamond | p-pattern | p-bitmap]
+    ]
+    
+    matrix-rule: [
+        keep 'matrix
+        opt keep pens 
+        keep block!
+    ]
+    
+    from-pair:   [from | set v1 pair! keep (v1 * 10)]
+    from-number: [from | keep number!]  ; not scaled - for angles and scalingg
+    pair-val: [pair! | ['from pair! 'to pair!]] 
+    
+    image-rule: [
+        img-mark: opt [set user-target set-word!]
+        'image (
+            cur-target: rejoin ["img" cur-idx]
+            sz: 0x0
+			img-d: none
+        )
+        :img-mark
+        word (val-ofs: 3)
+		[keep set img-d image!  | set img-d word! keep (get img-d)] 
+		(
+            if word? img-d [img-d: get img-d]
+            sz: img-d/size
+        ) 
+        [
+            [ahead [2 pair-val]2 [from-pair (val-ofs: val-ofs + 1)]]
+          | [ahead pair-val from-pair keep (sz + v1 * 10 )] 
+          | [keep (0x0) keep (sz * 10)]
+        ]
+        ; 4-point mode not yet implemented in Draw!
+        ; color doesn't seem to work too!
+        ; border mode is not yet implemented
+    ]
+    
+    transform-rule: [
+        trans-mark: opt [set user-target set-word!]
+        'transform (
+            cur-target: rejoin ["trans" cur-idx]
+            target: 'transform
+        )
+        :trans-mark
+        word (val-ofs: 2 val-idx: 2)
+        opt [ahead pair-val from-pair (val-idx: 3 val-ofs: val-ofs + 1)] ; center
+        3 [from-number (val-ofs: val-ofs + 1)]    ; rotation angle, scale X, scale Y
+        (val-idx: 1)                              ; to account for 
+        from-pair                                 ; translation amount
+        opt into anim-rule               ; block of Draw commands 
+    ]
+    
+    comb-modes: ['replace | 'intersect | 'union | 'xor | 'exclude]
+    
+    clip-rule: [
+        'clip (
+            cur-target: rejoin ["trans" cur-idx]
             cur-idx: cur-idx + 1
+            target: 'clip
+            val-ofs: 2
         )
         keep (to-set-word cur-target)
-        :pen-mark keep word!
-        [from | [keep tuple!] | keep-word-val | p-linear | p-radial | p-diamond | p-pattern | p-bitmap]
+        keep (to-word "clip")
+        [
+            [2 from-pair]    ; start - end
+          | [into anim-rule] ; shape
+        ]  
+        opt keep comb-modes
+        opt into anim-rule
     ]
     
     command: [
@@ -1423,7 +1492,14 @@ context [
                   | stroke-path
                   | morph-path
                   | pen-rule
-                  | word            ; Draw command
+                  | image-rule
+                  | matrix-rule
+                  | transform-rule
+                  | clip-rule
+                  | [keep 'reset-matrix opt keep pens]
+                  | [keep 'invert-matrix opt keep pens]
+                  | [keep 'push keep block!]
+                  | word  ; Draw command
                     ; word parameter, like font or image value
                     opt keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)
                     ; parameters, incl. animated ones
@@ -1450,7 +1526,6 @@ context [
             line-width 10
         ]
         ;probe draw-block
-        ;probe text-fx-map
         ;probe ani-bl
         ;probe timeline
         target/draw: draw-block
@@ -1995,9 +2070,8 @@ block-along-curve: function [
             blocks: [(draw-buf)]
             crv: [(crv)]            
             bez-segs: [(bez-segs)]
-            spacing: (spacing)      ; could it be a block of integers?
+            spacing: (spacing)  
         ]    
-        
         draw-buf
     ][
 
