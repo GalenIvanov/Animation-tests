@@ -1,5 +1,61 @@
 # Animation dialect for Red
 
+**Animate** is an experimental animation dialect. It's main goal is to provide the programmers with an easy declarartive way to describe simple animation as an extesnion to Draw. It also provides mechanism for animating arbitrary word! or path! values.
+
+## Tween
+
+At the heart of Animate is the process known as Inbetweening - that is generating intermediate frames between two keyframes. Animate uses a function called `tween` for this. It's syntax is as follows:
+
+    tween <target> <va11> <val2> <start> <duration> <t> <ease>
+  
+    <target>   :  the word or path to set to the calculated value (word! any-path!)      
+    <val1>     :  Value to interpolate from  (number! pair! tuple!)
+    <val2>     :  Value to interpolate to  (number! pair! tuple!) 
+    <start>    :  Start of the time period (number!)
+    <duration> :  Duration of the time period (number!)
+    <t>        :  Current time (number!)   
+    <ease>     :  Easing function (function!)
+    
+
+`tween` uses the indicated easing function to interpolate a value between `val1` and `val2` for time `t` in the time interval from `stat` to `start + duration`. The target can be any word or path.
+
+There are severeal predefined easing functions:
+
+- ease-linear
+- ease-in-sine
+- ease-out-sine
+- ease-in-out-sine
+- ease-in-out-power
+- ease-in-quad
+- ease-out-quad
+- ease-in-out-quad
+- ease-in-cubic
+- ease-out-cubic
+- ease-in-out-cubic
+- ease-in-quart
+- ease-out-quart
+- ease-in-out-quart
+- ease-in-quint
+- ease-out-quint
+- ease-in-out-quint
+- ease-in-expo
+- ease-out-expo
+- ease-in-out-expo
+- ease-in-circ
+- ease-out-circ
+- ease-in-out-circ
+- ease-in-back
+- ease-out-back
+- ease-in-out-back
+- ease-in-elastic
+- ease-out-elastic
+- ease-in-out-elastic
+- ease-in-bounce
+- ease-out-bounce
+- ease-in-out-bounce
+- ease-steps
+
+
 
 # Ideas for future work
 There are many things that can be added to the animation system:
