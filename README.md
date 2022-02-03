@@ -1,6 +1,6 @@
 # Animation dialect for Red
 
-**Animate** is an experimental animation dialect. It's main goal is to provide the programmers with an easy declarartive way to describe simple animation as an extesnion to Draw. It also provides mechanism for animating arbitrary word! or path! values.
+**Animate** is an experimental animation dialect. It's main goal is to provide the programmers with an easy declarartive way to describe simple animation as an extenson to Draw. It also provides mechanism for animating arbitrary word! or path! values.
 
 ## Tween
 
@@ -17,7 +17,7 @@ At the heart of Animate is the process known as Inbetweening - that is generatin
     <ease>     :  Easing function (function!)
     
 
-`tween` uses the indicated easing function to interpolate a value between `val1` and `val2` for time `t` in the time interval from `stat` to `start + duration`. The target can be any word or path.
+`tween` uses the indicated easing function to interpolate a value between `val1` and `val2` for time `t` in the time interval from `stat` to `start + duration`. The target can be any word or path. Using explicit calls to `tween` you can animate anithing in Red, including GUI controls.
 
 There are severeal predefined easing functions:
 
@@ -55,6 +55,11 @@ There are severeal predefined easing functions:
 - ease-in-out-bounce
 - ease-steps
 
+## Animate and Draw
+
+The main goal of Animate is to extend Draw in the time domain. This is done by using "augmented" draw block. Every block of Draw commands is a valid animation block. In order to animate the various Draw primitives, Animate introduces new keywords. Before we present them, let's see how the infrastructure works.
+
+If  
 
 
 # Ideas for future work
