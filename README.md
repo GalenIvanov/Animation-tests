@@ -59,7 +59,64 @@ There are severeal predefined easing functions:
 
 The main goal of Animate is to extend Draw in the time domain. This is done by using "augmented" draw block. Every block of Draw commands is a valid animation block. In order to animate the various Draw primitives, Animate introduces new keywords. Before we present them, let's see how the infrastructure works.
 
-If  
+    anim-block: [
+        ; Draw and Aniamate commands
+    ]
+    
+    view [
+        canvas: base 600x400 rate 60
+        on-create [animate anim-block face]
+    ]
+
+The `animate` function parses a block of draw and animation commands, creates a Draw block for the given face and prepares all the tweens for the the animation.
+
+    animate <commands> <face>
+    
+    <commands> : a block of Draw and animate commands (block!)
+    <face>    :  a View face (a face to attach the generated Draw block to)
+
+## Animation events
+
+Before we start to animate the parameters of Draw commands, we need to indicate the reference frames.
+
+    start <start> <duration> <delay> <ease> <loop> <actors>
+
+    <start>      : starting time (<anim-start>)
+    <duration    : duration of the animation (number!)
+    <delay>      : delay between successive subanimations (number!)
+	<ease>       : easing function (function!)
+    <loop>       : how does the animation repeat  (<anim-loop>)
+	<actors>     : actors for the animatin events (<anim-actors>)
+	
+	<anim-start> : <start-n> | <adverb> <ref> <end>
+	<start-n>    : (optional) time in seconds (number!)
+	<adverb>     : relation to the reference animation (word!)
+	<ref>        : reference animation already declared (word!)
+	<end>        : which side (word!)
+	
+	<adverb> is one of the following:
+	- when
+	- after
+	- before 
+	
+	<end> is one of:
+	- stars
+	- ends
+	
+	anim-loop>  : <two-way> <count>
+	<two-way>   : (optional) 'two-way (the animation repeats backwards)
+	<count>     : 'forever | <n> 'times
+	<n>         : how many times does the animatin repeat (integer!)
+	
+	<actors> are
+	
+	on-start     : triggered when the animation starts (block!)
+	on-exit      : triggered when the animation ends (block!)
+    on-time      : at each on-time event of the face. `time` word refers to the time elapsed from animation start.
+	
+	
+    
+
 
 
 # Ideas for future work
