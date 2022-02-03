@@ -100,7 +100,7 @@ Before we start to animate the parameters of Draw commands, we need to indicate 
     - before 
     
     <end> is one of:
-    - stars
+    - starts
     - ends
     
     anim-loop>  : <two-way> <count>
