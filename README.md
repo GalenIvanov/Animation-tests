@@ -80,44 +80,50 @@ The `animate` function parses a block of draw and animation commands, creates a 
 Before we start to animate the parameters of Draw commands, we need to indicate the reference frames.
 
     start <start> <duration> <delay> <ease> <loop> <actors>
-
+    
     <start>      : starting time (<anim-start>)
-    <duration    : duration of the animation (number!)
-    <delay>      : delay between successive subanimations (number!)
-	<ease>       : easing function (function!)
-    <loop>       : how does the animation repeat  (<anim-loop>)
-	<actors>     : actors for the animatin events (<anim-actors>)
-	
-	<anim-start> : <start-n> | <adverb> <ref> <end>
-	<start-n>    : (optional) time in seconds (number!)
-	<adverb>     : relation to the reference animation (word!)
-	<ref>        : reference animation already declared (word!)
-	<end>        : which side (word!)
-	
-	<adverb> is one of the following:
-	- when
-	- after
-	- before 
-	
-	<end> is one of:
-	- stars
-	- ends
-	
-	anim-loop>  : <two-way> <count>
-	<two-way>   : (optional) 'two-way (the animation repeats backwards)
-	<count>     : 'forever | <n> 'times
-	<n>         : how many times does the animatin repeat (integer!)
-	
-	<actors> are
-	
-	on-start     : triggered when the animation starts (block!)
-	on-exit      : triggered when the animation ends (block!)
+    <duration    : (optional) duration of the animation (number!). Default value 1.0
+    <delay>      : (optional) delay between successive subanimations (number!). Default value 0.0
+    <ease>       : (optional) easing function (function!). Default value  :ease-linear
+    <loop>       : (optional) how does the animation repeat  (<anim-loop>). Default - no repetition
+    <actors>     : (optional) actors for the animatin events (<anim-actors>)
+        
+    <anim-start> : <start-n> | <adverb> <ref> <end>
+    <start-n>    : (optional) time in seconds (number!)
+    <adverb>     : relation to the reference animation (word!)
+    <ref>        : reference animation already declared (word!)
+    <end>        : which side (word!)
+    
+    <adverb> is one of the following:
+    - when
+    - after
+    - before 
+    
+    <end> is one of:
+    - stars
+    - ends
+    
+    anim-loop>  : <two-way> <count>
+    <two-way>   : (optional) 'two-way (the animation repeats backwards)
+    <count>     : 'forever | <n> 'times
+    <n>         : how many times does the animatin repeat (integer!)
+    
+    <actors> are
+    
+    on-start     : triggered when the animation starts (block!)
+    on-exit      : triggered when the animation ends (block!)
     on-time      : at each on-time event of the face. `time` word refers to the time elapsed from animation start.
 	
-	
+### Examples:
+
+    ref: start 2.0 duration 5.0
+    start 1.0 before ref starts duration 2.0                  
+    start when ref starts duration 3.0 ease :ease-in-out-cubic                 
+    start 2.0 after ref starts duration 5.0              
+    start 2.0 before ref ends duration 2.0 delay 1.0 ease :ease-in-out-cubic loop two-way
+    start when ref ends duration 5.0 loop two-way forever
+    start 2.0 after ref ends ease :ease-in-elastic loop 3 times
     
-
-
 
 # Ideas for future work
 There are many things that can be added to the animation system:
