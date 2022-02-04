@@ -398,7 +398,6 @@ context [
     new-fx: false
     path-id: none
     path-block: none
-    ;frame-rate: 1
     from-on-start: copy []
     from-on-time: copy []
     from-on-exit: copy []
@@ -568,18 +567,6 @@ context [
         )    
     ]
     
-    mark-keep-word: [
-        w1: to [draw-cmd | end]
-        w2: [ 
-            [ 
-                if (any [user-target find copy/part w1 w2 'from])
-                keep (to-set-word cur-target)
-                :p keep word!
-                (user-target: none)
-            ]
-          | :p keep word!
-        ]
-    ]
     ; Draw commands and markers for them
     word: [                             
         opt [set user-target set-word!]
@@ -589,7 +576,6 @@ context [
             val-idx: 1
             target: p/1
             cur-target: any [user-target rejoin [p/1 cur-idx: cur-idx + 1]]
-            ;if find [image font linear radial diamond pattern bitmap] p/1 [val-ofs: val-ofs + 1]
             if 'font = target [
                 fnt: get p/2
                 unless find scaled-fonts p/2 [
@@ -598,7 +584,18 @@ context [
                 ]    
             ]
         )
-        mark-keep-word
+        opt [pens (val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
+        w1: to [draw-cmd | end]
+        w2: [ 
+            [ 
+                if (any [user-target find copy/part w1 w2 'from])
+                keep (to-set-word cur-target) ; marker
+                :p keep word!
+                (user-target: none)
+            ]
+          | :p keep word!
+        ]
+        opt [keep pens (val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
     ]
     
     particles: [
@@ -1398,7 +1395,7 @@ context [
         pen-mark: opt [set user-target set-word!]
         pens (cur-target: rejoin [pen-mark/1 cur-idx])
         :pen-mark
-        word (val-ofs: 2)
+        word (val-ofs: 2) ;?
         [from | [keep tuple!] | keep-word-val | p-linear | p-radial | p-diamond | p-pattern | p-bitmap]
     ]
     
@@ -1417,12 +1414,12 @@ context [
         'image (
             cur-target: rejoin ["img" cur-idx]
             sz: 0x0
-			img-d: none
+            img-d: none
         )
         :img-mark
         word (val-ofs: 3)
-		[keep set img-d image!  | set img-d word! keep (get img-d)] 
-		(
+        [keep set img-d image!  | set img-d word! keep (get img-d)] 
+        (
             if word? img-d [img-d: get img-d]
             sz: img-d/size
         ) 
@@ -1443,7 +1440,7 @@ context [
             target: 'transform
         )
         :trans-mark
-        word (val-ofs: 2 val-idx: 2)
+        word ;(val-idx: val-idx + 1 val-ofs: val-ofs + 1)
         opt [ahead pair-val from-pair (val-idx: 3 val-ofs: val-ofs + 1)] ; center
         3 [from-number (val-ofs: val-ofs + 1)]    ; rotation angle, scale X, scale Y
         (val-idx: 1)                              ; to account for 
@@ -1525,7 +1522,7 @@ context [
             scale 0.1 0.1 
             line-width 10
         ]
-        ;probe draw-block
+        probe draw-block
         ;probe ani-bl
         ;probe timeline
         target/draw: draw-block
