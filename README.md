@@ -75,7 +75,7 @@ The `animate` function parses a block of draw and animation commands, creates a 
     <commands> : a block of Draw and animate commands (block!)
     <face>    :  a View face (a face to attach the generated Draw block to)
 
-## Animation events
+## Animation reference frames
 
 Before we start to animate the parameters of Draw commands, we need to indicate the reference frames.
 
@@ -119,6 +119,7 @@ Before we start to animate the parameters of Draw commands, we need to indicate 
     start when ref ends duration 5.0 loop two-way forever
     start 2.0 after ref ends ease :ease-in-elastic loop 3 times
     
+## From
 
 The values set by `start` are used until the next `start` construct. A set-word! can precede `start` and thus the following animation frames can refer to it.
 The `start` declaration does not animate anything by itself. In order to animate a value, one needs to use `from value1 to value2` syntax:
@@ -151,6 +152,57 @@ Each `from` construct is translated at the parse time to a call to `tween` funct
 
 If `delay` in a `start` reference frame is non-zero, each animation defined by `from` starts the amount of `delay` later than the previous. That is why the actors are defined at `from` level and not at the `start` level. `start` could define a reference frame that starts at 1.0 with duration 5.0 and delay 1.0. If there are 3 values animated with `from`, the first one will start at 1.0, the second - at 2.0 and the third will start at 3.0 and will finish at 8.0. With actors defined at `from` level one can monitor each effect independently. That wouldn't have been possible if actors were used at `start` level.
 Next `start` resets the delay.
+
+
+# Effects
+
+`Animate` introduces several effects that are meant to automate some of the more frequently used tasks in animations.
+
+## Particles
+
+`particles` animates a simple particle system:
+
+    particles <id> <prototype> <expires> <actors>
+     
+    <id>        : effect identifier (word!)
+    <prototype> : a block describing the particles (block!)
+    <expires>   : (optional) when to clear the effect's draw black
+    <actors>    : (optional) actors for the events
+
+Prototype is a block of set-word! and value pairs that is used to create each individual partilce as well as to set up the entire effect:
+
+    
+    number:     <integer!>
+    emitter:    [<pair!> <pair!>]
+    direction:  <integer float!>
+    dir-rnd:    <integer float!>
+    speed:      <integer float!>
+    speed-rnd:  <integer float!>
+    shapes:     <block!>
+    limits:     <block!>
+    new-coords: <block!>
+    forces:     <block> 
+    
+
+All of the above pairs are optional. If some is not present, the default value is obtaind from the prototype object:
+
+    particle-base: make object! [
+        number:     100                  ; how many particles
+        start:      1.0                  ; start time of the effect
+        duration:   5.0                  ; duration of the effect
+        emitter:    [0x100 200x100]      ; where particles are born - a box
+        direction:  90.0                 ; degrees
+        dir-rnd:    0.0                  ; random spread of direction, symmetric
+        speed:      1.0                  ; particle base speed
+        speed-rnd:  0.2                  ; randomization of speed for each particle, always added
+        shapes:     speck                ; a block of draw blocks (shapes to be used to render particles)
+        limits:     []                   ; conditions for particle to be respawned - based on coordinates 
+        new-coords: []                   ; where reposition the particle
+        forces:     []                   ; what forces affect the particles motion - a block of words
+    ]
+
+
+
 
 
 
