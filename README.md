@@ -120,6 +120,7 @@ Before we start to animate the parameters of Draw commands, we need to indicate 
     start 2.0 after ref ends ease :ease-in-elastic loop 3 times
     
 
+The values set by `start` are used until the next `start` construct. A set-word! can precede `start` and thus the following animation frames can refer to it.
 The `start` declaration does not animate anything by itself. In order to animate a value, one needs to use `from value1 to value2` syntax:
 
     from <value> to <value> <actors>
@@ -133,7 +134,7 @@ The `start` declaration does not animate anything by itself. In order to animate
     on-exit   : once, when the animation ends
     on-time   : each time the animation is updated. 
     
- `on-time` is trigered at the rate specified by the face to which the draw block is attached. "time" word can be used within the block following "on-time" - it holds the time elapsed from the animation start.
+ `on-time` is trigered at the rate specified by the face to which the draw block is attached. `time` word can be used within the block following `on-time` - it holds the time elapsed from the animation start.
     
     
 All numeric values in an animation block can be animated using `from` - integers, floats, pairs and tuples (for colors).
@@ -146,7 +147,12 @@ All numeric values in an animation block can be animated using `from` - integers
     scale from 0.0 to 1.0 1.0 on-time [label/data: time] 
     box 10x10 from 10x10 to 200x50 one-exit [print "Finished!"]
     
-    
+Each `from` construct is translated at the parse time to a call to `tween` function. 
+
+If `delay` in a `start` reference frame is non-zero, each animation defined by `from` starts the amount of `delay` later than the previous. That is why the actors are defined at `from` level and not at the `start` level. `start` could define a reference frame that starts at 1.0 with duration 5.0 and delay 1.0. If there are 3 values animated with `from`, the first one will start at 1.0, the second - at 2.0 and the third will start at 3.0 and will finish at 8.0. With actors defined at `from` level one can monitor each effect independently. That wouldn't have been possible if actors were used at `start` level.
+Next `start` resets the delay.
+
+
 
 # Ideas for future work
 There are many things that can be added to the animation system:
