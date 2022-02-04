@@ -401,6 +401,7 @@ context [
     from-on-start: copy []
     from-on-time: copy []
     from-on-exit: copy []
+    pen-scale: 1.0
     
     make-effect: does [
         ani-bl: copy/part to-block effect 22
@@ -441,7 +442,7 @@ context [
         if all [
             find [integer! float! pair!] type?/word scaled
             not find/only do-not-scale reduce[target val-idx]
-        ] [scaled: scaled * 10]
+        ] [scaled: scaled * pen-scale * 10]
     ]
     
     value: [set scaled [float! | tuple! | string! | object! | integer! | pair!] (rescale)]
@@ -558,7 +559,6 @@ context [
         set t [path! | word!] (cur-target: t cur-idx: cur-idx + 1)
         'from set v1 skip 'to set v2 skip (
             make-effect        
-            val-ofs: val-ofs + 1
             cur-effect: make effect ani-bl
             cur-effect/start: start-v
             start-v: start-v + delay-v
@@ -572,10 +572,10 @@ context [
         opt [set user-target set-word!]
         p: word!
         (
-            val-ofs: 1
+            val-ofs: 2
             val-idx: 1
             target: p/1
-            cur-target: any [user-target rejoin [p/1 cur-idx: cur-idx + 1]]
+            cur-target: any [user-target rejoin [p/1 cur-idx]]
             if 'font = target [
                 fnt: get p/2
                 unless find scaled-fonts p/2 [
@@ -583,19 +583,22 @@ context [
                     append scaled-fonts p/2
                 ]    
             ]
+            if 'text = target [
+                print ["text" val-ofs]
+            ]
         )
-        opt [pens (val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
+        opt pens ; (val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
         w1: to [draw-cmd | end]
         w2: [ 
             [ 
                 if (any [user-target find copy/part w1 w2 'from])
                 keep (to-set-word cur-target) ; marker
                 :p keep word!
-                (user-target: none)
+                (user-target: none cur-idx: cur-idx + 1)
             ]
           | :p keep word!
         ]
-        opt [keep pens (val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
+        opt [keep pens (scale-pen: 0.1 val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
     ]
     
     particles: [
@@ -1394,8 +1397,7 @@ context [
     pen-rule: [
         pen-mark: opt [set user-target set-word!]
         pens (cur-target: rejoin [pen-mark/1 cur-idx])
-        :pen-mark
-        word (val-ofs: 2) ;?
+        :pen-mark word (val-ofs: 2) ;?
         [from | [keep tuple!] | keep-word-val | p-linear | p-radial | p-diamond | p-pattern | p-bitmap]
     ]
     
@@ -1416,8 +1418,7 @@ context [
             sz: 0x0
             img-d: none
         )
-        :img-mark
-        word (val-ofs: 3)
+        :img-mark word (val-ofs: 3)
         [keep set img-d image!  | set img-d word! keep (get img-d)] 
         (
             if word? img-d [img-d: get img-d]
@@ -1433,19 +1434,50 @@ context [
         ; border mode is not yet implemented
     ]
     
+    scale-rule: [
+        scale-mark: opt [set user-target set-word!]
+        'scale (
+            cur-target: rejoin ["scale" cur-idx]
+            target: 'scale
+        )
+        :scale-mark word
+        [from-number (val-ofs: val-ofs + 1) from-number] (pen-scale: 1.0)
+    ]
+    
+    translate-rule: [
+        translate-mark: opt [set user-target set-word!]
+        'translate (
+            cur-target: rejoin ["translate" cur-idx]
+            target: 'translate
+        )
+        :translate-mark word
+        from-pair (pen-scale: 1.0)
+    ] 
+    
+    rotate-rule: [
+        rotate-mark: opt [set user-target set-word!]
+        'rotate (
+            cur-target: rejoin ["rotate" cur-idx]
+            target: 'rotate
+        )
+        :rotate-mark word (pen-scale: 0.1)
+        from-number (pen-scale: 1.0)
+    ]
+    
+    
     transform-rule: [
         trans-mark: opt [set user-target set-word!]
         'transform (
-            cur-target: rejoin ["trans" cur-idx]
+            cur-target: rejoin ["translate" cur-idx]
             target: 'transform
         )
         :trans-mark
-        word ;(val-idx: val-idx + 1 val-ofs: val-ofs + 1)
+        word 
         opt [ahead pair-val from-pair (val-idx: 3 val-ofs: val-ofs + 1)] ; center
         3 [from-number (val-ofs: val-ofs + 1)]    ; rotation angle, scale X, scale Y
         (val-idx: 1)                              ; to account for 
         from-pair                                 ; translation amount
-        opt into anim-rule               ; block of Draw commands 
+        opt into anim-rule                        ; block of Draw commands 
     ]
     
     comb-modes: ['replace | 'intersect | 'union | 'xor | 'exclude]
@@ -1453,7 +1485,6 @@ context [
     clip-rule: [
         'clip (
             cur-target: rejoin ["trans" cur-idx]
-            cur-idx: cur-idx + 1
             target: 'clip
             val-ofs: 2
         )
@@ -1491,6 +1522,9 @@ context [
                   | pen-rule
                   | image-rule
                   | matrix-rule
+                  | scale-rule
+                  | translate-rule
+                  | rotate-rule
                   | transform-rule
                   | clip-rule
                   | [keep 'reset-matrix opt keep pens]
@@ -1498,7 +1532,7 @@ context [
                   | [keep 'push keep block!]
                   | word  ; Draw command
                     ; word parameter, like font or image value
-                    opt keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)
+                    opt [keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
                     ; parameters, incl. animated ones
                     any [[from | value keep (scaled) ](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
                     opt keep 'closed ; for splines and arcs
@@ -1515,14 +1549,13 @@ context [
         spec   [block!]               {A block of draw and animate commands}
         target [word! path! object!]  {A face to render the draw block and animations}
     ][
-        ;frame-rate: target/rate
         draw-block: parse spec anim-rule
         insert draw-block compose [
             (to set-word! "ani-start") 
-            scale 0.1 0.1 
-            line-width 10
+            scale 0.1 0.1                ; for subpixel precision          
+            line-width 10                
         ]
-        probe draw-block
+        ;probe draw-block
         ;probe ani-bl
         ;probe timeline
         target/draw: draw-block
@@ -2071,7 +2104,6 @@ block-along-curve: function [
         ]    
         draw-buf
     ][
-
         t: max t 0.005
         d: 0
         obj: draw-blocks-data/:id
