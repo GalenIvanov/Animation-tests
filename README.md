@@ -263,7 +263,7 @@ Effect data is a block with set-word! and value pairs:
     
     data: <string! block!>     (text or block of draw blocks)
     font: <object! word>       (optional - if data is a string)
-    curve: <block!>            (a block of pairs - pointos of the Bézier curve)
+    curve: <block!>            (a block of pairs - points of the Bézier curve)
     space-x: <float! integer!> (character spacing for strings - float!, or horizontal offset between blocks)
 
 ### Example - curve-fx
