@@ -165,7 +165,7 @@ Next `start` resets the delay.
     particles <id> <prototype> <expires> <actors>
      
     <id>        : effect identifier (word!)
-    <prototype> : a block describing the particles (block!)
+    <prototype> : a block describing the particles (block! word!)
     <expires>   : (optional) when to clear the effect's draw black
     <actors>    : (optional) actors for the events
 
@@ -241,8 +241,52 @@ Since a particle effect usually displays hunderds and thousands of objects, it's
 The starting time of `particles` is taken from the last `start` (and subsequent `from`, if `delay` is non-zero). `duration` and `ease` - too. Looping doesn't make much sense for particle effects and that's why is not supported.
 
 
+### Actors
+
+`particles` and all other effects in `animate` support the same actors as `from`.
 
 
+## Curve-fx
+
+`curve-fx` flows a text or one or several draw blocks along a Bézier curve. Standard Bézier curves in Draw support 3 or 4 points. `curve-fx` supports up tp 30 points (not-thoroughly tested!).
+
+    curve-fx <id> <effect> <value> <expires> <actors>
+    
+    <id>       : effect identifier (word!)
+    <effect>   : effect data (block! word!)
+    <value>    : position on the curve (float! <from value1 to value2>)
+    <expires>  : (optional) when to clear the effects draw block (same as particles)
+    <actors>   : (optional) on event actors (same as from)
+
+Effect data is a block with set-word! and value pairs: 
+
+    
+    data: <string! block!>     (text or block of draw blocks)
+    font: <object! word>       (optional - if data is a string)
+    curve: <block!>            (a block of pairs - pointos of the Bézier curve)
+    space-x: <float! integer!> (character spacing for strings - float!, or horizontal offset between blocks)
+
+### Example - curve-fx
+
+    fnt1: make font! [name: "Verdana" size: 16 color: black]
+    red-text: "Red is a next-gen programming language, strongly inspired by REBOL"
+    bez-pts: [50x40 370x-120 350x100 250x400 620x200] 
+    red-info: [data: red-text font: fnt1 curve: bez-pts space-x: 0.98]
+    
+    block: [
+        font fnt1
+        start 1.0 duration 2.0 delay 1.0 ease :ease-in-out-cubic
+        curve-fx Red-lang red-info from 1.0 to 0.0 expires after 5
+    ]	
+    
+
+If the effect's data is block of draw blocks, the blocks are translated and orientd on the curve one after another starting at the current position and adding the offset along the curve.
+
+## Text-fx
+
+## Stroke-path
+
+## Morph path
 
 
 
