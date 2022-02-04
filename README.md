@@ -188,8 +188,6 @@ All of the above pairs are optional. If some is not present, the default value i
 
     particle-base: make object! [
         number:     100                  ; how many particles
-        start:      1.0                  ; start time of the effect
-        duration:   5.0                  ; duration of the effect
         emitter:    [0x100 200x100]      ; where particles are born - a box
         direction:  90.0                 ; degrees
         dir-rnd:    0.0                  ; random spread of direction, symmetric
@@ -200,6 +198,31 @@ All of the above pairs are optional. If some is not present, the default value i
         new-coords: []                   ; where reposition the particle
         forces:     []                   ; what forces affect the particles motion - a block of words
     ]
+
+
+### Generation
+
+`emitter` is a block of two pairs that form a box. Each particle is born initially at a random place in this rectangular area. `direction` indicates in which direction the particle will be moving in degrees. `dir-rnd` adds randomness to the direction. `speed` and `speed-rnd` define the particle's speed. `shapes` is a block of draw block that are used to display the particles. The shapes in block are randomly chosen at the initialization phase.
+
+### Movement
+
+At each frame the position of each particle is updated using `speed`, `direction`. `speed` and `direction` are influenced by any functions in the `forces` block.
+
+### Respawn particles
+
+Particles coordinates are tested against the rule for `x` and `y` in the `limits` block. If the rule returns `false`, the particle's position is reset using the the values for `x` and `y` set in `new-coords` block.
+
+**Examples for `limits`**
+
+    [x > 550 y < 60]
+    [120.0 < sqrt x - 300.0 ** 2 + (y - 200.0 ** 2)] 
+    
+**Examples for `new-coords`**
+
+    [x: 300.0 y: 200.0]
+    [x: 455.0 + random 90.0 y: 340.0]    
+
+
 
 
 
