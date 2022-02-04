@@ -79,7 +79,7 @@ The `animate` function parses a block of draw and animation commands, creates a 
 
 Before we start to animate the parameters of Draw commands, we need to indicate the reference frames.
 
-    start <start> <duration> <delay> <ease> <loop> <actors>
+    start <start> <duration> <delay> <ease> <loop>
     
     <start>      : starting time (<anim-start>)
     <duration    : (optional) duration of the animation (number!). Default value 1.0
@@ -105,16 +105,11 @@ Before we start to animate the parameters of Draw commands, we need to indicate 
     
     anim-loop>  : <two-way> <count>
     <two-way>   : (optional) 'two-way (the animation repeats backwards)
-    <count>     : 'forever | <n> 'times
+    <count>     : (optional) 'forever | <n> 'times
     <n>         : how many times does the animatin repeat (integer!)
     
-    <actors> are
-    
-    on-start     : triggered when the animation starts (block!)
-    on-exit      : triggered when the animation ends (block!)
-    on-time      : at each on-time event of the face. `time` word refers to the time elapsed from animation start.
 	
-### Examples:
+### Examples - start:
 
     ref: start 2.0 duration 5.0
     start 1.0 before ref starts duration 2.0                  
@@ -123,6 +118,34 @@ Before we start to animate the parameters of Draw commands, we need to indicate 
     start 2.0 before ref ends duration 2.0 delay 1.0 ease :ease-in-out-cubic loop two-way
     start when ref ends duration 5.0 loop two-way forever
     start 2.0 after ref ends ease :ease-in-elastic loop 3 times
+    
+
+The `start` declaration does not animate anything by itself. In order to animate a value, one needs to use `from value1 to value2` syntax:
+
+    from <value> to <value> <actors>
+    
+    <value>  : start or end value to be animated (number! pair! tuple!)
+    <actors> : (optional) <event> block!
+    
+    Actors specify blocks of code that is evaluated at specific animation events. Events are:
+    
+    on-start  : once, at the animation start
+    on-exit   : once, when the animation ends
+    on-time   : each time the animation is updated. 
+    
+ `on-time` is trigered at the rate specified by the face to which the draw block is attached. "time" word can be used within the block following "on-time" - it holds the time elapsed from the animation start.
+    
+    
+All numeric values in an animation block can be animated using `from` - integers, floats, pairs and tuples (for colors).
+
+### Examples - from
+
+    line-width from 1 to 10
+    pen from black to red
+    translate from 0x0 to 100x25 on-start [started: true]
+    scale from 0.0 to 1.0 1.0 on-time [label/data: time] 
+    box 10x10 from 10x10 to 200x50 one-exit [print "Finished!"]
+    
     
 
 # Ideas for future work
