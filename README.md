@@ -206,7 +206,14 @@ All of the above pairs are optional. If some is not present, the default value i
 
 ### Movement
 
-At each frame the position of each particle is updated using `speed`, `direction`. `speed` and `direction` are influenced by any functions in the `forces` block.
+At each frame the position of each particle is updated using `speed`, `direction`. `speed` and `direction` are influenced by any functions in the `forces` block. There are two pre-defined functions: `gravity` and `drag`. Each force- function should receive two arguments - `dir` and `speed` (current partilce's direction anfle and speed) and should return a block [dir speed].
+
+**Example force- function**
+
+    drag: func [dir speed][
+        speed: speed * 0.99
+        reduce [dir speed]
+    ]
 
 ### Respawn particles
 
@@ -222,6 +229,16 @@ Particles coordinates are tested against the rule for `x` and `y` in the `limits
     [x: 300.0 y: 200.0]
     [x: 455.0 + random 90.0 y: 340.0]    
 
+
+### Expires
+
+Since a particle effect usually displays hunderds and thousands of objects, it's to free the drawing resources when the effect finishes. `expires` and optional and if not present, the last drawn frame is kept in draw block. 
+
+    expire after <time>
+    
+    <time>  : how many seconds after the beginning of the effect to clear the effect's draw commands (integer! float!)
+    
+The starting time of `particles` is taken from the last `start` (and subsequent `from`, if `delay` is non-zero). `duration` and `ease` - too. Looping doesn't make much sense for particle effects and that's why is not supported.
 
 
 
