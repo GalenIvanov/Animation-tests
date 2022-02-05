@@ -318,7 +318,7 @@ If the effect's data is block of draw blocks, the blocks are translated and orie
     color-value : color-v or (from color-v to color-v)
     color-v: tuple! or word!
     
-### Text-xf example
+### Text-fx example
 
     fnt: make font! [name: "Brush Script MT" size: 28 color: 25.12.5.255]
     text: {Red’s ambitious goal is to build the world’s
@@ -337,20 +337,77 @@ If the effect's data is block of draw blocks, the blocks are translated and orie
         box 0x0 720x200
         st: start 2.0 duration 0.3 delay 0.02 ease :ease-in-out-cubic
         text-fx txt-bl text-scale from 4.0 to 1.0 from 4.0 to 1.0
-	text-color from 25.12.5.255 to 25.12.5.0
+        text-color from 25.12.5.255 to 25.12.5.0
     ]
     
-In the above example the multiline string is displayed character after character (mode: 'chars). Both character scaling and color are animated at the same time. The time offset is controled by `delay`.
-
-
-
-    
+In the above example the multiline string is displayed character after character (mode: 'chars). Both character scaling and color are animated at the same time. Characters start  big (4 times bigger) and transparent and at the end are their normal size and dark color. The time offset is controled by `delay`.
 
 ## Stroke-path
 
+`stroke-path` traces a block of drawing primitives and gradually displays the already traced part with a given color and line width.
+
+    stroke-path <id> <path> width <width> color <color> <expires> <actors>
+    
+    <id>       : effect id   (word!)
+    <path>     : a block of lines, arcs and custom Bézier curves (block!)
+    <width>    : line width (integer!)
+    <color>    : line color (tuple! word!)
+    <expires>  : (optional) when to clear the effects draw block (same as particles)
+    <actors>   : (optional) on event actors (same as from)
+    
+Path contents are limited to just three types of primitives: lines, circular arcs and custom (multipoint) Bézier curves. The path is not closed automatically. Please note that only the `x` radius of an arc is used (no elliptical arcs)
+
+### Stroke-path example
+
+    path: [
+       line 100x100 220x100 180x200 250x200
+       arc 250x250 50x50 270 90 
+       bezier 300x250 320x400 450x200 500x300
+    ]
+    
+    path-block: compose [
+        line-cap round
+        start 1 duration 2 ease :ease-in-out-quad
+        stroke-path test (path) width 15 color red expires after 4
+        on-start [print "Starting path1"]
+    ]
+
 ## Morph path
 
+`morph-path` takes a path and morphs it into another path. The paths are the same as in `stroke-path`.
 
+    morph-path <path> into <path> <visible> <expires> <actors>
+    
+    <path>     : a block of lines, arcs and custom Bézier curves (block!)
+    <visible>  : (optional) Is the furst block displayed at the start? <visible <logic!>> 
+    <expires>  : (optional) when to clear the effects draw block (same as particles)
+    <actors>   : (optional) on event actors (same as from)
+
+### Morph-path example
+
+    path1: [
+        arc 200x200 180x180 180 180
+        arc 200x200 180x180 0 180
+    ]
+
+    path2: [
+        line 100x100 250x100 arc 250x150 50x50 270 90 line 300x150 300x250
+        bezier 300x250 250x350 200x250 150x200 100x250
+        line 100x250 100x100
+    ]
+    
+    morph-path-block: compose/deep [
+        pen red
+        line-width 3
+        line-cap round
+        start 2 duration 2 ease :ease-in-out-quint
+        morph-path (path1) into (path2) visible true expires after 2
+    ]
+
+
+`morph-path` uses the current pen and line-width settings.
+
+For best results it's a good idea to match the starting point of the path as close as possible. The number of points of the paths doesn't matter.
 
 # Ideas for future work
 There are many things that can be added to the animation system:
@@ -366,10 +423,15 @@ There are many things that can be added to the animation system:
 ## Text-fx to work on specified parts of text
 Now it works on all components, depending on the mode - lines, words or characters. It would be good to specify which ones to animate. Possible parameters: index, range, or block of indices.
 
-## Frames - an effect that changes the content of an image frame by frame
+## Frames
+An effect that changes the content of an image frame by frame
 
 ## 2d Arrays
 - rectangular
 - polar
 
 ## Parallax effect
+
+## Collision detection
+
+## Physics
