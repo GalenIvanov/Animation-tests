@@ -4,6 +4,8 @@ Red [
     needs: view
 ]
 
+; Docs and test at %https://github.com/GalenIvanov/Animation-tests 
+
 st-time: now/precise
 pascal: none
 text-data: make map! 20
@@ -1461,7 +1463,8 @@ context [
             target: 'rotate
         )
         :rotate-mark word (pen-scale: 0.1)
-        from-number (pen-scale: 1.0)
+        from-number (pen-scale: 1.0 val-ofs: val-ofs + 1)
+        opt from-pair
     ]
     
     
