@@ -254,7 +254,7 @@ The starting time of `particles` is taken from the last `start` (and subsequent 
     
     <id>       : effect identifier (word!)
     <effect>   : effect data (block! word!)
-    <value>    : position on the curve (float! <from value1 to value2>)
+    <value>    : position on the curve (float! (from float! to float!))
     <expires>  : (optional) when to clear the effects draw block (same as particles)
     <actors>   : (optional) on event actors (same as from)
 
@@ -280,9 +280,71 @@ Effect data is a block with set-word! and value pairs:
     ]	
     
 
-If the effect's data is block of draw blocks, the blocks are translated and orientd on the curve one after another starting at the current position and adding the offset along the curve.
+If the effect's data is block of draw blocks, the blocks are translated and oriented on the curve one after another starting at the current position and adding the offset along the curve.
 
 ## Text-fx
+
+`text-fx`allows to easily animate text element's parameters: color, scaling and position. It can preocess the provided string in three modes: lines, words and characters.
+
+    text-fx <fx-block> <parameters> <expires> <actors>
+    
+    <fx-block>    : a block defining the text effect (block!)
+    <parameters>  : (optional) effect parameter name and values (params)
+    <expires>     : (optional) when to clear the effects draw block (same as particles)
+    <actors>      : (optional) on event actors (same as from)
+
+`fx-block` is a block containing the data neded for creation and animation of the text. Here are the default values. One need to specifiy the id, text and font, the others can be obtained by the default values:
+    
+    id: none        ; identfier
+    text: ""        ; text to render   
+    font: none      ; font to use
+    mode: 'chars    ; how to split the text  
+    posXY: 0x0      ; where to place the text  
+    sp-x:  1.0      ; spacing factor for X direction
+    sp-y:  1.0      ; spacing factor for Y direction
+    from: 'center   ; origin of scaling
+    random: off     ; process the text element not in order, but randomly 
+    
+    mode is one of 'lines, 'words or 'shars
+
+`params` are:
+    
+    text-scale <scale-value> <scale-value>
+    text-move <move-value>
+    text-color <color-value>
+    
+    scale-value : float! or (from float! to float!)
+    move-value  : pair! or (from pair! to pair!)
+    color-value : color-v or (from color-v to color-v)
+    color-v: tuple! or word!
+    
+### Text-xf example
+
+    fnt: make font! [name: "Brush Script MT" size: 28 color: 25.12.5.255]
+    text: {Red’s ambitious goal is to build the world’s
+    first full-stack language, a language you can
+    use from system programming tasks,
+    up to high-level scripting through DSL.}
+    
+    txt-bl: compose [
+        id: 'test text: (text) font: (fnt)
+        posXY: 20x20 sp-y: 0.75
+        mode: 'chars from: 'center random: off
+    ]
+    
+    anim-block: compose [
+        fill-pen (papaya + 0.20.30)
+        box 0x0 720x200
+        st: start 2.0 duration 0.3 delay 0.02 ease :ease-in-out-cubic
+        text-fx txt-bl text-scale from 4.0 to 1.0 from 4.0 to 1.0
+	text-color from 25.12.5.255 to 25.12.5.0
+    ]
+    
+In the above example the multiline string is displayed character after character (mode: 'chars). Both character scaling and color are animated at the same time. The time offset is controled by `delay`.
+
+
+
+    
 
 ## Stroke-path
 
