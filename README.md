@@ -57,23 +57,24 @@ There are severeal predefined easing functions:
 
 ## Animate and Draw
 
-The main goal of Animate is to extend Draw in the time domain. This is done by using "augmented" draw block. Every block of Draw commands is a valid animation block. In order to animate the various Draw primitives, Animate introduces new keywords. Before we present them, let's see how the infrastructure works.
+The main goal of Animate is to extend Draw in the time domain. This is done by using "augmented" draw block. Every block of Draw commands is a valid animation block. In order to animate the various Draw primitives, Animate introduces new keywords. Before we present them, let's see how to connect `animate` to Draw.
 
     anim-block: [
         ; Draw and Aniamate commands
     ]
     
     view [
-        canvas: base 600x400 rate 60
-        on-create [animate anim-block face]
+        canvas: base 600x400 rate 67
+        draw animate anim-block
     ]
 
-The `animate` function parses a block of draw and animation commands, creates a Draw block for the given face and prepares all the tweens for the the animation.
+The `animate` function parses a block of draw and animation commands, prepares all the tweens for the the animation and returns a Draw block.
 
-    animate <commands> <face>
+    animate <commands>
     
     <commands> : a block of Draw and animate commands (block!)
-    <face>    :  a View face (a face to attach the generated Draw block to)
+    
+`animate` uses a global event handler to process `on-time` events and that's why the rate facet should be set for at least one face for animation to work.
 
 ## Animation reference frames
 
