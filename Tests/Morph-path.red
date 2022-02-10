@@ -46,7 +46,7 @@ morph-path-block: compose/deep [
 print "Morph-path test"
 
 view compose [
-    canvas: base 400x400 beige rate 60
-    on-create [animate morph-path-block face]
-	time-t: text "0.0"
+    canvas: base 400x400 beige rate 67
+    draw animate morph-path-block
+    time-t: text "0.0"
 ]
