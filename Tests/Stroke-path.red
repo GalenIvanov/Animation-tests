@@ -31,6 +31,6 @@ path-block: compose [
 print "Stroke-path test"
 
 view compose [
-    canvas: base 600x400 beige rate 60
-    on-create [animate path-block face]
+    canvas: base 600x400 beige rate 67
+    draw animate path-block
 ]
