@@ -6,6 +6,9 @@ Red [
 
 ; Docs and test at %https://github.com/GalenIvanov/Animation-tests 
 
+
+random/seed now
+
 st-time: now/precise
 pascal: none
 text-data: make map! 20
@@ -21,7 +24,7 @@ stroke-path-map: make map! 10
 morph-path-map: make map! 10
 dummy: 0
 
-random/seed now
+
 
 effect: make object! [
     val1:       0.0          ; starting value to change
@@ -35,7 +38,9 @@ effect: make object! [
     on-start:   []           ; actor   
     on-time:    []           ; actor
     on-exit:    []           ; actor  
-    ease:       func [x][x]  ; easing function
+    ;ease:       func [x][x]  ; easing function
+    ease:       none          ; easing function
+    
 ]
 
 text-effect: make object! [
@@ -338,11 +343,13 @@ line-width line-join line-cap anti-alias matrix reset-matrix
 invert-matrix push rotate scale translate skew transform
 clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [space newline]
 
-draw-cmd: head clear back tail collect [
+draw-cmd: collect [
     foreach w difference draw-words split "linear radial diamond pattern bitmap" sp [
         keep to-lit-word w keep '|
     ]
 ]
+
+append draw-cmd ['particles | 'text-fx | 'curve-fx | 'stroke-path | 'morph-path | 'parameter]
 
 autoscale: function [
     {Multiplies by 10 the linear sizes of draw block commands
@@ -369,7 +376,7 @@ autoscale: function [
     dest
 ]
 
-context [
+anm: context [
     ani-bl: copy []
     draw-block: make block! 1000
     cur-effect: make block! 20
@@ -403,7 +410,13 @@ context [
     from-on-start: copy []
     from-on-time: copy []
     from-on-exit: copy []
-    pen-scale: 1.0
+    scale-coef: 1.0
+    
+    ; global event handler 
+    anim-on-time: func [face event][
+        if event/type = 'time [process-timeline]
+        return none
+    ]
     
     make-effect: does [
         ani-bl: copy/part to-block effect 22
@@ -416,6 +429,7 @@ context [
         ani-bl/loop-count: 1
         ani-bl/bi-dir: off
         ani-bl/ease: any [:ease-v to get-word! "ease-linear"]
+        
         ani-bl/on-start: from-on-start 
         ani-bl/on-time: from-on-time
         ani-bl/on-exit: from-on-exit
@@ -444,10 +458,12 @@ context [
         if all [
             find [integer! float! pair!] type?/word scaled
             not find/only do-not-scale reduce[target val-idx]
-        ] [scaled: scaled * pen-scale * 10]
+        ] [scaled: scaled * scale-coef * 10]
     ]
     
     value: [set scaled [float! | tuple! | string! | object! | integer! | pair!] (rescale)]
+    
+    time-value: [time! | float! | integer!]
     
     start: [
         [
@@ -464,9 +480,9 @@ context [
                 ]
             ) 
             [
-            set st [number! ahead not ['when | 'after | 'before]] (start-v: st)
+            set st [time-value ahead not ['when | 'after | 'before]] (start-v: st)
             | [
-                opt set t-offs number!
+                opt set t-offs time-value
                 ['when | 'after | 'before (time-dir: -1)]
                 set ref word! (id: time-map/:ref start-v: id/1)
                 [
@@ -490,16 +506,18 @@ context [
         )
     ]
     
-    dur: [['duration set d number!] (dur-v: d)]
+    dur: [['duration set d time-value] (dur-v: d)]
     
-    delay: [['delay set dl number!](delay-v: dl)]
+    delay: [['delay set dl time-value](delay-v: dl)]
     
     ease: ['ease set ease-v any-word!]
     
     anim-loop: [
         'loop
-        p: opt 'two-way (if p/1 = 'two-way [bi-dir: on])
-        opt ['forever (loop-n: -1) | set loop-n integer! 'times ]
+        [    
+             p: opt 'two-way (if p/1 = 'two-way [bi-dir: on])
+            opt ['forever (loop-n: -1) | set loop-n integer! 'times ]
+        ]
     ]
     
     anim-actors: [ 
@@ -529,9 +547,13 @@ context [
             'to p2: from-value (clear-anim-actors)
             opt anim-actors
         ] (
+            ;probe ease-v: any [:ease-v to get-word! "ease-linear"]
             make-effect
             ani-bl/loop-count: loop-n
             cur-effect: make effect ani-bl
+            ;cur-effect/ease: any [ease-v :ease-linear]
+            ;probe cur-effect
+
             trgt: to-path reduce [to-word cur-target val-ofs]
             cur-effect/start: start-v
             either bi-dir [
@@ -572,7 +594,7 @@ context [
     ; Draw commands and markers for them
     word: [                             
         opt [set user-target set-word!]
-        p: word!
+        p: [word! | lit-word!]
         (
             val-ofs: 2
             val-idx: 1
@@ -585,11 +607,8 @@ context [
                     append scaled-fonts p/2
                 ]    
             ]
-            if 'text = target [
-                print ["text" val-ofs]
-            ]
         )
-        opt pens ; (val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
+        opt pens
         w1: to [draw-cmd | end]
         w2: [ 
             [ 
@@ -598,7 +617,7 @@ context [
                 :p keep word!
                 (user-target: none cur-idx: cur-idx + 1)
             ]
-          | :p keep word!
+          | :p keep [word! | lit-word!]
         ]
         opt [keep pens (scale-pen: 0.1 val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
     ]
@@ -1350,7 +1369,7 @@ context [
     spread: ['pad | 'repeat | 'reflect]
     tile-mode:  ['tile | 'flip-x | 'flip-y | 'flip-xy | 'clamp]
     
-    pen-scale-up: [
+    scale-coef-up: [
         keep ('scale)
         keep (to-lit-word "fill-pen")
         keep (10.0)
@@ -1391,7 +1410,7 @@ context [
         p-img: keep word!
         0 2 [keep pair!]     ; start; end
         opt keep tile-mode  ;spread method
-        pen-scale-up ; scale up 10x because of the initial scal 0.1
+        scale-coef-up ; scale up 10x because of the initial scal 0.1
     ]
     
     pens: ['pen | 'fill-pen]
@@ -1410,7 +1429,7 @@ context [
     ]
     
     from-pair:   [from | set v1 pair! keep (v1 * 10)]
-    from-number: [from | keep number!]  ; not scaled - for angles and scalingg
+    from-number: [from | keep number!]  ; not scaled - for angles and scaling
     pair-val: [pair! | ['from pair! 'to pair!]] 
     
     image-rule: [
@@ -1441,9 +1460,10 @@ context [
         'scale (
             cur-target: rejoin ["scale" cur-idx]
             target: 'scale
+            scale-coef: 0.1
         )
         :scale-mark word
-        [from-number (val-ofs: val-ofs + 1) from-number] (pen-scale: 1.0)
+        [from-number (val-ofs: val-ofs + 1) from-number] (scale-coef: 1.0)
     ]
     
     translate-rule: [
@@ -1453,7 +1473,7 @@ context [
             target: 'translate
         )
         :translate-mark word
-        from-pair (pen-scale: 1.0)
+        from-pair (scale-coef: 1.0)
     ] 
     
     rotate-rule: [
@@ -1462,8 +1482,8 @@ context [
             cur-target: rejoin ["rotate" cur-idx]
             target: 'rotate
         )
-        :rotate-mark word (pen-scale: 0.1)
-        from-number (pen-scale: 1.0 val-ofs: val-ofs + 1)
+        :rotate-mark word (scale-coef: 0.1)
+        from-number (scale-coef: 1.0 val-ofs: val-ofs + 1)
         opt from-pair
     ]
     
@@ -1503,18 +1523,16 @@ context [
     
     command: [
         (time-id: none)
-        opt [set time-id [set-word! ahead 'start]]   ; named animation
-        opt start
-        opt dur
-        opt delay
-        opt ease
-        opt anim-loop
+        p-st: opt [set time-id [set-word! ahead 'start]]   ; named animation
+        start
+        any [dur | delay | ease | anim-loop] 
+        ahead [draw-cmd | start | skip (print ["Invalid 'start syntax at" mold copy/part p-st 5] exit)]
     ]
     
     anim-rule: [
         collect [
             some [
-                command
+                any command
                 opt [
                     param
                   | text-fx
@@ -1533,6 +1551,10 @@ context [
                   | [keep 'reset-matrix opt keep pens]
                   | [keep 'invert-matrix opt keep pens]
                   | [keep 'push keep block!]
+                  | 'duration (print "'duration used oustide 'start" exit)
+                  | 'delay (print "'delay used oustide 'start" exit)
+                  | 'ease (print "'ease used oustide 'start" exit)
+                  | 'loop (print "'loop used outside 'start" exit)
                   | word  ; Draw command
                     ; word parameter, like font or image value
                     opt [keep [not 'from not 'to word!](val-ofs: val-ofs + 1 val-idx: val-idx + 1)]
@@ -1547,27 +1569,30 @@ context [
     ]
 
     set 'animate func [
-        {Takes a block of draw and animate commands and generates a draw block
-        for the target face and a timeline for the animations}
-        spec   [block!]               {A block of draw and animate commands}
-        target [word! path! object!]  {A face to render the draw block and animations}
+        {Takes a block of draw and animate commands, generates a draw block
+        and sets the animation tweens}
+        spec   [block!]   {A block of draw and animate commands}
     ][
         draw-block: parse spec anim-rule
         insert draw-block compose [
             (to set-word! "ani-start") 
-            scale 0.1 0.1                ; for subpixel precision          
+            scale 0.1 0.1    ; for subpixel precision          
             line-width 10                
         ]
         ;probe draw-block
         ;probe ani-bl
         ;probe timeline
-        target/draw: draw-block
-       
-        actors: make block! 10
-        append clear actors [on-time: func [face event][process-timeline]]
-        target/actors: object actors
-        
-        st-time: now/precise  
+                
+        test-img: make image! [100x100 0.0.0.0]
+        if error? draw-err: try [draw test-img copy draw-block][
+            print "Invalid drawing command at:" 
+            probe draw-err/arg1
+            exit
+        ]
+  
+        insert-event-func :anim-on-time
+        st-time: now/precise
+        draw-block
     ]
 ]
 
@@ -1678,17 +1703,21 @@ ease-in-out-bounce: func [x][
 ]
 ;------------------------------------------------------------------------------------------------
 
+;ease-linear: func [x][x]
+
 tween: function [
     {Interpolates a value between value1 and value2 at time t
     in the stretch start .. start + duration using easing function ease}
-    target   [word! any-path!]      {the word or path to set}
-    val1     [number! pair! tuple!] {Value to interpolate from}
-    val2     [number! pair! tuple!] {Value to interpolate to}
-    start    [number!]              {Start of the time period}
-    duration [number!]              {Duration of the time period}
-    t        [number!]              {Current time}
-    ease     [function!]            {Easing function}
+    target   [word! any-path!]        {the word or path to set}
+    val1     [number! pair! tuple!]   {Value to interpolate from}
+    val2     [number! pair! tuple!]   {Value to interpolate to}
+    start    [time! float! integer!]  {Start of the time period}
+    duration [time! float! integer!]  {Duration of the time period}
+    t        [float! integer!]        {Current time}
+    ease     [function!]              {Easing function}
 ][
+    start: to-float start
+    duration: to-float duration
     end-t: duration * 1.09 + start  ; depends on the easing!
     if all [t >= start t <= end-t][
         either t < (start + duration) [
