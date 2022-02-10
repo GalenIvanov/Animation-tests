@@ -59,5 +59,5 @@ anim-block: compose [
 view [
     title "Animate - markers"
     canvas: base 900x450 black rate 120
-    on-create [animate anim-block face]    
+    draw animate anim-block
 ]
