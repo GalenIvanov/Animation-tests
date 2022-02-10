@@ -21,10 +21,10 @@ anim-block: compose/deep [
     
     font fnt
     fill-pen pattern 100x100 [(fill)]
-    start 0 ease :ease-in-out-cubic loop 2 times duration 5 loop forever 
+    start 0 ease 'ease-in-out-cubic loop 2 times duration 5 loop forever 
     rotate 'fill-pen from 0.0 to 360.0 150x150
         
-    start 0 duration 5 ease :ease-in-out-elastic loop two-way forever
+    start 0 duration 5 ease 'ease-in-out-elastic loop two-way forever
     scale 'fill-pen from 1.0 to 2.0 from 1.0 to 2.0
     
     spline 100x100 from 300x50 to 300x150 500x100
