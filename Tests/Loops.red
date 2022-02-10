@@ -21,7 +21,7 @@ anim: compose/deep [
     
     font demo-font
     
-    fly-in: start 0.0 duration 2.0 ease :ease-in-out-elastic
+    fly-in: start 0.0 duration 2.0 ease 'ease-in-out-elastic
     translate from 600x0 to 0x0 [
         text 20x20 "loop 3 times"
         box 230x20 580x50
@@ -29,7 +29,7 @@ anim: compose/deep [
         translate from 0x0 to 320x0 on-exit [print "One-way finished"] on-start [print "One-way started"]
         box 235x25 255x45
     ]
-    start 0.5 after fly-in starts duration 2.0 ease :ease-in-out-elastic    
+    start 0.5 after fly-in starts duration 2.0 ease 'ease-in-out-elastic    
     translate from 600x0 to 0x0 [
         text 20x60 "loop two-way 3 times"
         box 230x60 580x90
@@ -38,7 +38,7 @@ anim: compose/deep [
         box 235x65 255x85
     ]
 
-    start 2.0 after fly-in starts ease :ease-in-out-cubic 
+    start 2.0 after fly-in starts ease 'ease-in-out-cubic 
     translate from 0x100 to 0x0 [
         line 20x130 580x130
         text 20x140 "Background: loop forever"
