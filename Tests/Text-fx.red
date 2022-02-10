@@ -49,5 +49,5 @@ print "start"
 view [
     title "Animate"
     canvas: base 600x200 black rate 60
-    on-create [animate anim-block face]
+    draw animate anim-block
 ]
