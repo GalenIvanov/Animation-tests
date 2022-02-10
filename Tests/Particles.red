@@ -104,6 +104,6 @@ d: [
 print "Particles demo"
 
 view [
-    canvas: base 600x400 rate 120
-    on-create [animate d face]
+    canvas: base 600x400 rate 67
+    draw animate d
 ]
