@@ -35,7 +35,6 @@ anim: compose/deep [
         box 230x60 580x90
         start 2.0 after fly-in starts duration 2.0 loop two-way 3 times
         translate from 0x0 to 320x0 on-exit [print "Two-way finished"] on-start [print "Two-way started"]
-
         box 235x65 255x85
     ]
 
@@ -49,6 +48,6 @@ anim: compose/deep [
 print "Loops test"
 
 view [
-    base 600x180 beige rate 60
-    on-create [animate anim face]
+    canvas: base 600x180 beige rate 67
+    draw animate anim
 ]
