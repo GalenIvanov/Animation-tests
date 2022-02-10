@@ -13,7 +13,7 @@ anim-block: compose [
     pen from white to white
     on-time [tm/3: form round/to time 0.01]
     on-exit [quit]
-    start 1 duration 1 ease :ease-in-out-quad
+    start 1 duration 1 ease 'ease-in-out-quad
     parameter btn/size/y from 100 to 200
     font fnt
     tm: text 80x80 "0.00"
