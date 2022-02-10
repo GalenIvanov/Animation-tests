@@ -10,7 +10,7 @@ logo: load %red-logo.png
 font-1: make font! [name: "Verdana" style: 'bold size: 20 color: 255.255.255.255]
 font-2: make font! [name: "Verdana" size: 12 color: white ] ;255.125.55.0]
 
-ani-bl1: compose/deep [
+ani-bl1: compose [
     start 1.0 duration 2.0 ease :ease-in-out-quad
         image logo from 60x60 to 35x35 from 60x60 to 150x150
         font font-1
@@ -34,6 +34,6 @@ ani-bl1: compose/deep [
 
 view [
     title "Animate"
-    canvas: base 670x400 49.39.39 rate 120
-    on-create [animate ani-bl1 face]
+    canvas: base 670x400 49.39.39 rate 67
+    draw animate ani-bl1
 ]
