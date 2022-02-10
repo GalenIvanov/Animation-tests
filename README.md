@@ -83,14 +83,14 @@ Before we start to animate the parameters of Draw commands, we need to indicate 
     start <start> <duration> <delay> <ease> <loop>
     
     <start>      : starting time (<anim-start>)
-    <duration    : (optional) duration of the animation (number!). Default value 1.0
-    <delay>      : (optional) delay between successive subanimations (number!). Default value 0.0
-    <ease>       : (optional) easing function (function!). Default value  :ease-linear
+    <duration    : (optional) duration of the animation (time! float! integer!). Default value 1.0
+    <delay>      : (optional) delay between successive subanimations (time! float! integer!). Default value 0.0
+    <ease>       : (optional) easing function (lit-word! function!). Default value  'ease-linear
     <loop>       : (optional) how does the animation repeat  (<anim-loop>). Default - no repetition
     <actors>     : (optional) actors for the animatin events (<anim-actors>)
         
     <anim-start> : <start-n> | <adverb> <ref> <end>
-    <start-n>    : (optional) time in seconds (number!)
+    <start-n>    : (optional) time in seconds (time! float! integer!)
     <adverb>     : relation to the reference animation (word!)
     <ref>        : reference animation already declared (word!)
     <end>        : which side (word!)
