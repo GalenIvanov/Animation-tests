@@ -19,7 +19,7 @@ path-block: compose [
     line-width 15
     line-cap round
        
-    start 1 duration 2 ease :ease-in-out-quad
+    start 1 duration 2 ease 'ease-in-out-quad
     stroke-path test (path) width 15 color (papaya - 10.10.10) expires after 4
 	on-start [print "Starting path1"]
     on-exit [print "Ending path1"]
