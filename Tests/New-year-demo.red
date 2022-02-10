@@ -70,7 +70,7 @@ scene: compose/deep [
     fill-pen 245.245.255
     shape [
         move -10x300
-		start 0 duration 0.5 ease :ease-in-out-quad
+		start 0 duration 0.5 ease 'ease-in-out-quad
         curv -10x350 from 280x380 to 280x280 550x320 700x320
         line 750x510 -10x410 -10x350
     ]
@@ -79,7 +79,7 @@ scene: compose/deep [
     start 0.0 duration 20.0 
     particles snow snow-obj expires after 10
     
-    start 2.0 duration 5.0 ease :ease-in-out-cubic
+    start 2.0 duration 5.0 ease 'ease-in-out-cubic
     translate 0x80 [
         font fnt2
         curve-fx greeting-b happy-new-year from 1.0 to 0.0 expires after 18
@@ -87,7 +87,7 @@ scene: compose/deep [
         font fnt1
         curve-fx greeting happy-new-year from 1.0 to 0.0  expires after 18
     ]    
-    start 10.0 duration 5.0 ease :ease-in-out-cubic
+    start 10.0 duration 5.0 ease 'ease-in-out-cubic
     translate 0x80 [
         font fnt2
         curve-fx greeting-b happy-new-year from 0.0 to 1.0 expires after 18
@@ -96,7 +96,7 @@ scene: compose/deep [
         curve-fx greeting happy-new-year from 0.0 to 1.0 expires after 18
     ]
     
-    start 18.0 duration 2.0 ease :ease-in-out-cubic
+    start 18.0 duration 2.0 ease 'ease-in-out-cubic
     fill-pen from 0.0.0.255 to 0.0.0.0 on-exit [quit]
     box 0x0 600x400
 ]
