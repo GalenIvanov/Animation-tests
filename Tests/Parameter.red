@@ -21,6 +21,6 @@ anim-block: compose [
 
 view compose [
     btn: button 100x100 "OK"
-    canvas: base 200x200 beige rate 60
-    on-create [animate anim-block face]
+    canvas: base 200x200 beige rate 67
+    draw animate anim-block
 ]
