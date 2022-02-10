@@ -55,6 +55,7 @@ scene: compose/deep [
     pen transparent
     box 0x0 600x400
     fill-pen 220.220.235
+	
     shape [
         move -10x250
         curv  120x200 300x270 500x300 700x320
@@ -69,7 +70,8 @@ scene: compose/deep [
     fill-pen 245.245.255
     shape [
         move -10x300
-        curv -10x350 280x280 550x320 700x320
+		start 0 duration 0.5 ease :ease-in-out-quad
+        curv -10x350 from 280x380 to 280x280 550x320 700x320
         line 750x510 -10x410 -10x350
     ]
     
@@ -102,6 +104,6 @@ scene: compose/deep [
 print "start"
 
 view [
-    canvas: base 600x400 rate 120
-    on-create [animate scene face]
+    canvas: base 600x400 rate 67
+    draw animate scene
 ]
