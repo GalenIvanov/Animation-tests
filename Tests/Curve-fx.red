@@ -1,5 +1,5 @@
 Red [
-    title: "Animation dialect tests - text-along-curve"
+    title: "Animation dialect tests - text and block along curve"
     author: "Galen Ivanov"
     needs: view
 ]
@@ -41,6 +41,6 @@ print "curve-fx test"
 view [
     title "Animate"
     below
-    bb: base 650x350 black rate 60
-    on-create [animate block face]
+    bb: base 650x350 black rate 67
+    draw animate block
 ]
