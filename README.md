@@ -16,7 +16,7 @@ At the heart of Animate is the process known as Inbetweening - that is generatin
 
 `tween` uses the indicated easing function to interpolate a value between `val1` and `val2` at `t` - a floating point number between 0.0 and 1.0. Using explicit calls to `tween` you can animate anything in Red, including GUI controls.
 
-There are several predefined easing functions:
+There are several predefined [easing](https://easings.net/) functions:
 
 - ease-linear
 - ease-in-sine
