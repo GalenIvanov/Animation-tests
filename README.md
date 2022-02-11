@@ -1,25 +1,22 @@
 # Animation dialect for Red
 
-**Animate** is an experimental animation dialect. It's main goal is to provide the programmers with an easy declarartive way to describe simple animation as an extenson to Draw. It also provides mechanism for animating arbitrary word! or path! values.
+**Animate** is an experimental animation dialect. It's main goal is to provide the programmers with an easy declarative way to describe simple animation as an extension to Draw. It also provides mechanism for animating arbitrary word! or path! values.
 
 ## Tween
 
 At the heart of Animate is the process known as Inbetweening - that is generating intermediate frames between two keyframes. Animate uses a function called `tween` for this. It's syntax is as follows:
 
-    tween <target> <va11> <val2> <start> <duration> <t> <ease>
+    tween <va11> <val2> <t> <ease>
   
-    <target>   :  the word or path to set to the calculated value (word! any-path!)      
     <val1>     :  Value to interpolate from  (number! pair! tuple!)
     <val2>     :  Value to interpolate to  (number! pair! tuple!) 
-    <start>    :  Start of the time period (number!)
-    <duration> :  Duration of the time period (number!)
-    <t>        :  Current time (number!)   
+    <t>        :  a value between 0.0 and 1.0 (float!)   
     <ease>     :  Easing function (function!)
     
 
-`tween` uses the indicated easing function to interpolate a value between `val1` and `val2` for time `t` in the time interval from `stat` to `start + duration`. The target can be any word or path. Using explicit calls to `tween` you can animate anithing in Red, including GUI controls.
+`tween` uses the indicated easing function to interpolate a value between `val1` and `val2` at `t` - a floating point number between 0.0 and 1.0. Using explicit calls to `tween` you can animate anything in Red, including GUI controls.
 
-There are severeal predefined easing functions:
+There are several predefined easing functions:
 
 - ease-linear
 - ease-in-sine
@@ -60,7 +57,7 @@ There are severeal predefined easing functions:
 The main goal of Animate is to extend Draw in the time domain. This is done by using "augmented" draw block. Every block of Draw commands is a valid animation block. In order to animate the various Draw primitives, Animate introduces new keywords. Before we present them, let's see how to connect `animate` to Draw.
 
     anim-block: [
-        ; Draw and Aniamate commands
+        ; Draw and Animate commands
     ]
     
     view [
@@ -68,7 +65,7 @@ The main goal of Animate is to extend Draw in the time domain. This is done by u
         draw animate anim-block
     ]
 
-The `animate` function parses a block of draw and animation commands, prepares all the tweens for the the animation and returns a Draw block.
+The `animate` function parses a block of draw and animation commands, prepares all the tweens for the animation and returns a Draw block.
 
     animate <commands>
     
@@ -87,7 +84,7 @@ Before we start to animate the parameters of Draw commands, we need to indicate 
     <delay>      : (optional) delay between successive subanimations (time! float! integer!). Default value 0.0
     <ease>       : (optional) easing function (lit-word! function!). Default value  'ease-linear
     <loop>       : (optional) how does the animation repeat  (<anim-loop>). Default - no repetition
-    <actors>     : (optional) actors for the animatin events (<anim-actors>)
+    <actors>     : (optional) actors for the animation events (<anim-actors>)
         
     <anim-start> : <start-n> | <adverb> <ref> <end>
     <start-n>    : (optional) time in seconds (time! float! integer!)
@@ -136,7 +133,7 @@ The `start` declaration does not animate anything by itself. In order to animate
     on-exit   : once, when the animation ends
     on-time   : each time the animation is updated. 
     
- `on-time` is trigered at the rate specified by the face to which the draw block is attached. `time` word can be used within the block following `on-time` - it holds the time elapsed from the animation start.
+ `on-time` is triggered at the rate specified by the face to which the draw block is attached. `time` word can be used within the block following `on-time` - it holds the time elapsed from the animation start.
     
     
 All numeric values in an animation block can be animated using `from` - integers, floats, pairs and tuples (for colors).
@@ -185,7 +182,7 @@ Prototype is a block of set-word! and value pairs that is used to create each in
     forces:     <block> 
     
 
-All of the above pairs are optional. If some is not present, the default value is obtaind from the prototype object:
+All of the above pairs are optional. If some is not present, the default value is obtained from the prototype object:
 
     particle-base: make object! [
         number:     100                  ; how many particles
@@ -207,7 +204,7 @@ All of the above pairs are optional. If some is not present, the default value i
 
 ### Movement
 
-At each frame the position of each particle is updated using `speed`, `direction`. `speed` and `direction` are influenced by any functions in the `forces` block. There are two pre-defined functions: `gravity` and `drag`. Each force- function should receive two arguments - `dir` and `speed` (current partilce's direction anfle and speed) and should return a block [dir speed].
+At each frame the position of each particle is updated using `speed`, `direction`. `speed` and `direction` are influenced by any functions in the `forces` block. There are two pre-defined functions: `gravity` and `drag`. Each force- function should receive two arguments - `dir` and `speed` (current particle's direction angle and speed) and should return a block [dir speed].
 
 **Example force- function**
 
@@ -218,7 +215,7 @@ At each frame the position of each particle is updated using `speed`, `direction
 
 ### Respawn particles
 
-Particles coordinates are tested against the rule for `x` and `y` in the `limits` block. If the rule returns `false`, the particle's position is reset using the the values for `x` and `y` set in `new-coords` block.
+Particles coordinates are tested against the rule for `x` and `y` in the `limits` block. If the rule returns `false`, the particle's position is reset using the values for `x` and `y` set in `new-coords` block.
 
 **Examples for `limits`**
 
@@ -233,7 +230,7 @@ Particles coordinates are tested against the rule for `x` and `y` in the `limits
 
 ### Expires
 
-Since a particle effect usually displays hunderds and thousands of objects, it's to free the drawing resources when the effect finishes. `expires` and optional and if not present, the last drawn frame is kept in draw block. 
+Since a particle effect usually displays hundreds and thousands of objects, it's to free the drawing resources when the effect finishes. `expires` and optional and if not present, the last drawn frame is kept in draw block. 
 
     expire after <time>
     
@@ -285,7 +282,7 @@ If the effect's data is block of draw blocks, the blocks are translated and orie
 
 ## Text-fx
 
-`text-fx`allows to easily animate text element's parameters: color, scaling and position. It can preocess the provided string in three modes: lines, words and characters.
+`text-fx` allows to easily animate text element's parameters: color, scaling and position. It can preocess the provided string in three modes: lines, words and characters.
 
     text-fx <fx-block> <parameters> <expires> <actors>
     
@@ -306,7 +303,7 @@ If the effect's data is block of draw blocks, the blocks are translated and orie
     from: 'center   ; origin of scaling
     random: off     ; process the text element not in order, but randomly 
     
-    mode is one of 'lines, 'words or 'shars
+    mode is one of 'lines, 'words or 'chars
 
 `params` are:
     
@@ -341,7 +338,7 @@ If the effect's data is block of draw blocks, the blocks are translated and orie
         text-color from 25.12.5.255 to 25.12.5.0
     ]
     
-In the above example the multiline string is displayed character after character (mode: 'chars). Both character scaling and color are animated at the same time. Characters start  big (4 times bigger) and transparent and at the end are their normal size and dark color. The time offset is controled by `delay`.
+In the above example the multiline string is displayed character after character (mode: 'chars). Both character scaling and color are animated at the same time. Characters start  big (4 times bigger) and transparent and at the end are their normal size and dark color. The time offset is controlled by `delay`.
 
 ## Stroke-path
 
@@ -380,7 +377,7 @@ Path contents are limited to just three types of primitives: lines, circular arc
     morph-path <path> into <path> <visible> <expires> <actors>
     
     <path>     : a block of lines, arcs and custom Bézier curves (block!)
-    <visible>  : (optional) Is the furst block displayed at the start? <visible <logic!>> 
+    <visible>  : (optional) Is the first block displayed at the start? <visible <logic!>> 
     <expires>  : (optional) when to clear the effects draw block (same as particles)
     <actors>   : (optional) on event actors (same as from)
 
