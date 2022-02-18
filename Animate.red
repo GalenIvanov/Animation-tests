@@ -276,28 +276,29 @@ context [
         
         foreach [key v] morph-path-map [
             s: v/started
-            if all [t > (0.98 * v/start) not s][
+            ;if all [t > (0.98 * v/start) not s][
+            if all [t > v/start not s][
                 clear p: get to-path reduce [to-word key 1]
                 append p v/block-1
                 v/started: on
             ]
             
             if all [t >= v/start s] [
+			    if lit-word? :v/ease [v/ease: in easings :v/ease]
+				tt: t - v/start / v/duration
                 either t <= (v/start + v/duration) [
-                    repeat n length? at v/block-1 2[
+                    repeat n length? at v/block-1 2 [
                         k: n + 1
-                        if lit-word? :v/ease [v/ease: in easings :v/ease]
                         trgt: to-path reduce [to-word key 1 k]
-                        tt: t - v/start / v/duration
-                        set trgt tween  v/block-1/:k v/block-2/:k tt get v/ease
+                        set trgt tween v/block-1/:k v/block-2/:k tt get v/ease
                     ]
                 ][
-                   clear p: get to-path reduce [to-word key 1]
-                   append p v/end-block
-                   if all [v/expires > 0 t > v/expires] [
-                       clear p
-                       remove/key morph-path-map key
-                   ]    
+                    ;clear p: get to-path reduce [to-word key 1]
+                    ;append p v/end-block
+                    if all [v/expires > 0 t > v/expires] [
+                        clear p
+                        remove/key morph-path-map key
+                    ]    
                 ]
             ]
         ]
@@ -1660,21 +1661,24 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ] path
     ]
     
-    set 'trace-path func [
+    trace-path: func [
         {Traverse the path's draw block and gradually change the pen color along the path}
         id [word!]     {effect id}
         t   [number!]  {time}
     ][
         p: stroke-path-map/(id)
-        path: at pick get id 1 p/cur-pos
+        path: at first get id p/cur-pos
+		active: true
         unless tail? path [
             new-count: to-integer t * p/count
             while [p/cur-count < new-count][
                 path: find/tail path 'pen
+				unless path [active: false break]
                 path/1: p/color
                 p/cur-count: p/cur-count + 1
             ]
-            p/cur-pos: min 1 + offset? head path path length? head path
+            ;p/cur-pos: min 1 + offset? head path path length? head path
+			if active [p/cur-pos: 1 + offset? head path path]
         ]    
     ]    
     
@@ -1861,14 +1865,15 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             ]
             append lines-2 last lines-2
         ]
-
+		
         put morph-path-map target compose/deep [
             start: (start-v)
             duration: (dur-v)
             expires: (morph-path-end)
             block-1: [(lines-1)]
             block-2: [(lines-2)]
-            end-block: [(p2)]
+            ;end-block: [(p2)]
+            end-block: [(lines-2)]
             ease: (ease-v)
             started: (false)
         ]
@@ -1904,7 +1909,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             linearize-paths target path1 path2
         )
         keep (to-set-word target)
-        keep (either show-first [path1][[]])
+        keep (either show-first [path1][copy []])
     ]
     
     spread: ['pad | 'repeat | 'reflect]
@@ -2122,6 +2127,8 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
 
         ;probe draw-block
         ;probe timeline
+		
+		probe morph-path-map
                 
         test-img: make image! [100x100 0.0.0.0]
         if error? draw-err: try [draw test-img copy draw-block][
