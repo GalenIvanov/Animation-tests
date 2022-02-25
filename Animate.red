@@ -276,7 +276,6 @@ context [
         
         foreach [key v] morph-path-map [
             s: v/started
-            ;if all [t > (0.98 * v/start) not s][
             if all [t > v/start not s][
                 clear p: get to-path reduce [to-word key 1]
                 append p v/block-1
@@ -284,8 +283,8 @@ context [
             ]
             
             if all [t >= v/start s] [
-			    if lit-word? :v/ease [v/ease: in easings :v/ease]
-				tt: t - v/start / v/duration
+                if lit-word? :v/ease [v/ease: in easings :v/ease]
+                tt: t - v/start / v/duration
                 either t <= (v/start + v/duration) [
                     repeat n length? at v/block-1 2 [
                         k: n + 1
@@ -293,8 +292,6 @@ context [
                         set trgt tween v/block-1/:k v/block-2/:k tt get v/ease
                     ]
                 ][
-                    ;clear p: get to-path reduce [to-word key 1]
-                    ;append p v/end-block
                     if all [v/expires > 0 t > v/expires] [
                         clear p
                         remove/key morph-path-map key
@@ -774,20 +771,21 @@ context [
         create-particle: func [
             {Instantiates a sinlge particle using the prototype}
             proto [object!]
-            /local
-                em
-                px  {position x}
-                py  {position y}
-                d   {direction}
-                s   {speed}
+            /local p
         ][
-            em: proto/emitter
-            px: (em/1/x + random 1.0 * em/2/x - em/1/x) * 10.0 
-            py: (em/1/y + random 1.0 * em/2/y - em/1/y) * 10.0 
-            d: proto/direction - (proto/dir-rnd / 2.0) + random to-float proto/dir-rnd
-            s: proto/speed + random to-float proto/speed-rnd
-            shape: autoscale random/only proto/shapes
-            reduce [px py d s shape]
+            ;em: proto/emitter
+            ;px: (em/1/x + random 1.0 * em/2/x - em/1/x) * 10.0 
+            ;py: (em/1/y + random 1.0 * em/2/y - em/1/y) * 10.0 
+            ;d: proto/direction - (proto/dir-rnd / 2.0) + random to-float proto/dir-rnd
+            ;s: proto/speed + random to-float proto/speed-rnd
+            ;shape: autoscale random/only proto/shapes
+            p: proto/emitter
+            p/1: p/1 * 10
+            p/2: p/2 * 10
+            p/4: p/4 * 10
+            
+            append/only p autoscale random/only proto/shapes
+            ;reduce [px py d s shape]
         ]
         
         init-particles: func [
@@ -798,10 +796,9 @@ context [
             /local
                 particles 
                 particles-draw
-                d n p
+                d n p id-p
         ][
             particles: make block! 2 * n: proto/number
-            f-body: 
             append particles reduce [
                 'proto proto
                 'respawn make function! compose/deep [
@@ -822,14 +819,19 @@ context [
             append particles-draw compose [(to-set-word rejoin [id "-" idx]) translate 0x0]
             
             loop n [
-                p:  create-particle proto
+                p: create-particle proto 
+                ;p: proto/emitter 
+                ;append/only p autoscale random/only proto/shapes ; particle draw block
+                
                 append/only particles/spec p
                 d: compose/deep [translate (as-pair to-integer p/1 to-integer p/2) [(p/5)]]
                 append particles/draw d
             ]
-            ;put particles-map id particles        
-            put particles-map to-word rejoin [id "-" idx] particles
-            head append/only particles-draw particles/draw
+            put particles-map (id-p: to-word rejoin [id "-" idx]) particles
+            ;head append/only particles-draw particles/draw
+            append/only particles-draw particles/draw
+            loop proto/rewind [update-particles id-p]
+            particles-draw
         ]
         
         update-particles: func [
@@ -1668,17 +1670,17 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     ][
         p: stroke-path-map/(id)
         path: at first get id p/cur-pos
-		active: true
+        active: true
         unless tail? path [
             new-count: to-integer t * p/count
             while [p/cur-count < new-count][
                 path: find/tail path 'pen
-				unless path [active: false break]
+                unless path [active: false break]
                 path/1: p/color
                 p/cur-count: p/cur-count + 1
             ]
             ;p/cur-pos: min 1 + offset? head path path length? head path
-			if active [p/cur-pos: 1 + offset? head path path]
+            if active [p/cur-pos: 1 + offset? head path path]
         ]    
     ]    
     
@@ -1865,7 +1867,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             ]
             append lines-2 last lines-2
         ]
-		
+        
         put morph-path-map target compose/deep [
             start: (start-v)
             duration: (dur-v)
@@ -2127,8 +2129,8 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
 
         ;probe draw-block
         ;probe timeline
-		
-		probe morph-path-map
+        
+        probe morph-path-map
                 
         test-img: make image! [100x100 0.0.0.0]
         if error? draw-err: try [draw test-img copy draw-block][
