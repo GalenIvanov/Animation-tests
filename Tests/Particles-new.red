@@ -34,7 +34,7 @@ wind: func [dir speed][
 
 motes: compose [
     number:     200
-	emitter: has [
+    emitter: has [
         {Intializes the spatial properties of a particle}
     	x y d s ; x and y coordinates, direction and speed
     ][
@@ -44,7 +44,7 @@ motes: compose [
         s: 0.5 + random 0.2
         reduce [x y d s]
     ]
-	rewind:     120  ; how many times to update the particles immediately after initialization
+    rewind:     120  ; how many times to update the particles immediately after initialization
     ;direction:  90.0    
     ;dir-rnd:    0.0
     ;speed:      10.0
