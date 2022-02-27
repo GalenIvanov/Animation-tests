@@ -33,16 +33,11 @@ wind: func [dir speed][
 ]
 
 motes: compose [
-    number:     200
-    emitter:    [50x50 150x350]
-    direction:  90.0    
-    dir-rnd:    0.0
-    speed:      10.0
-    speed-rnd:  5.0
-    shapes:     ball
-    forces:     [wind]
-    limits:     [y > 350 x < 50]
-    new-coords: [
+    number:     300
+    emitter: has [
+        {Intializes the spatial properties of a particle}
+    	x y d s ; x and y coordinates, direction and speed
+    ][
         t: random 4
         either t < 3 [
             x: 150.0
@@ -51,32 +46,52 @@ motes: compose [
             x: 50 + random 100.0
             y: 50.0
         ]
+        d: 90.0
+        s: 1.5 + random 0.2
+        reduce [x y d s]
     ]
+    absorber: function [
+        {Returns true if the particle needs to be re-emitted}
+        x y d s ; x and y coordinates, direction and speed of the particle
+    ][
+        to-logic any [x < 50 x > 150 y < 50 y > 350]
+    ]
+    rewind:     120  ; how many times to update the particles immediately after initialization
+    shapes:     ball
+    forces:    [wind]
 ]
 
 burst: [
     number:     300                
-    emitter:    [300x200 300x200]  
-    direction:  0.0                
-    dir-rnd:    360.0              
-    speed:      10.0                
-    speed-rnd:  10.0      
+    emitter:    [300x200 300x200] 
+    emitter: has [x y d s][
+       x: 300.0
+       y: 150.0
+       d: random 360.0
+       s: 0.5 + random 0.5
+       reduce [x y d s]
+    ]
+    absorber: function [x y d s][
+        120.0 < sqrt x - 300.0 ** 2 + (y - 200.0 ** 2)
+    ]
     shapes:     sparks             
     forces:     [gravity]
-    limits:     [120.0 < sqrt x - 300.0 ** 2 + (y - 200.0 ** 2)]
-    new-coords: [x: 300.0 y: 200.0]
 ]
 
 rocket: [
     number:     20
-    emitter:    [450x60 540x320]
-    direction:  270.0
-    dir-rnd:    0.0
-    speed:      8.0
-    speed-rnd:  8.0
-    shapes:     ship
-    limits:     [x > 550 y < 60]
-    new-coords: [x: 455.0 + random 90.0 y: 340.0]
+    emitter: has [x y d s][
+       x: 450.0 + random 90.0
+       y: 340.0
+       d: 270.0
+       s: 1.8 + random 1.5
+       reduce [x y d s]
+    ]
+    absorber: function [x y d s][
+        y < 60
+    ]
+    shapes: ship
+    rewind: 100
 ]
 
 fnt: make font! [size: 15]
@@ -86,7 +101,7 @@ d: [
     pen transparent
     box 0x0 600x400
     
-    start 1.0 duration 5.0 delay 2.0
+    start 0.0 duration 5.0 delay 2.0
     
     particles test motes expires after 6 on-start [print "Motes"] on-exit [print "Motes finished"]
     line-width 8 pen white fill-pen transparent
