@@ -751,15 +751,10 @@ context [
             number:     100                  ; how many particles
             start:      1.0                  ; start time of the effect
             duration:   5.0                  ; duration of the effect
-            emitter:    [0x100 200x100]      ; where particles are born - a box
-            direction:  90.0                 ; degrees
-            dir-rnd:    0.0                  ; random spread of direction, symmetric
-            speed:      1.0                  ; particle base speed
-            speed-rnd:  0.2                  ; randomization of speed for each particle, always added
+;            emitter:    [0x100 200x100]      ; where particles are born - a box
             shapes:     speck                ; a block of draw blocks (shapes to be used to render particles)
+            rewind:     0
             forces:     []                   ; what forces affect the particles motion - a block of words
-            limits:     []                   ; conditions for particle to be respawned - based on coordinates 
-            new-coords: []                  ; where reposition the particle
             started:    false
             finished:   false
             expires:    0                   ; when to clear the particle draw block
@@ -773,19 +768,12 @@ context [
             proto [object!]
             /local p
         ][
-            ;em: proto/emitter
-            ;px: (em/1/x + random 1.0 * em/2/x - em/1/x) * 10.0 
-            ;py: (em/1/y + random 1.0 * em/2/y - em/1/y) * 10.0 
-            ;d: proto/direction - (proto/dir-rnd / 2.0) + random to-float proto/dir-rnd
-            ;s: proto/speed + random to-float proto/speed-rnd
-            ;shape: autoscale random/only proto/shapes
             p: proto/emitter
-            p/1: p/1 * 10
-            p/2: p/2 * 10
-            p/4: p/4 * 10
-            
+            p/1: 10.0 * p/1 
+            p/2: 10.0 * p/2
+            p/4: 10.0 * p/4
             append/only p autoscale random/only proto/shapes
-            ;reduce [px py d s shape]
+
         ]
         
         init-particles: func [
@@ -801,17 +789,6 @@ context [
             particles: make block! 2 * n: proto/number
             append particles reduce [
                 'proto proto
-                'respawn make function! compose/deep [
-                    [x y]
-                    [
-                        c: false
-                        if any [(proto/limits)] [
-                            c: true
-                            (proto/new-coords)
-                        ] 
-                        reduce [c x y]
-                    ]
-                ]
                 'spec copy []
                 'draw copy []
             ]
@@ -820,43 +797,40 @@ context [
             
             loop n [
                 p: create-particle proto 
-                ;p: proto/emitter 
-                ;append/only p autoscale random/only proto/shapes ; particle draw block
-                
                 append/only particles/spec p
                 d: compose/deep [translate (as-pair to-integer p/1 to-integer p/2) [(p/5)]]
                 append particles/draw d
             ]
             put particles-map (id-p: to-word rejoin [id "-" idx]) particles
-            ;head append/only particles-draw particles/draw
             append/only particles-draw particles/draw
-            loop proto/rewind [update-particles id-p]
+            loop proto/rewind [update-particles id-p] ; update the particle positions 
             particles-draw
         ]
         
         update-particles: func [
             id [word!]
             /local
-               respawn i p ps pd tmp new-p
+               respawn i p ps pd p-id tmp new-p 
         ][
-            ps: particles-map/:id/spec
-            pd: particles-map/:id/draw
+            p-id: particles-map/:id
+            ps: p-id/spec
+            pd: p-id/draw
             
             repeat i length? ps [
                 p: ps/:i
                 ; check of it's time to respawn the particle
-                ;tmp: particles-map/:id/proto/limits 0.1 * p/1 0.1 * p/2
-                tmp: particles-map/:id/respawn 0.1 * p/1 0.1 * p/2
-                if tmp/1 [
-                    new-p: create-particle particles-map/:id/proto
-                    p/1: 10.0 * tmp/2
-                    p/2: 10.0 * tmp/3
+                ;tmp: particles-map/:id/respawn 0.1 * p/1 0.1 * p/2
+                if p-id/proto/absorber 0.1 * p/1 0.1 * p/2 p/3 p/4 [
+                    new-p: p-id/proto/emitter
+                    p/1: 10.0 * new-p/1
+                    p/2: 10.0 * new-p/2
                     p/3: new-p/3
-                    p/4: new-p/4
+                    p/4: 10.0 * new-p/4
                 ]
                 
                 ; apply forces - they make changes in place
-                foreach force particles-map/:id/proto/forces [
+                ; forces should accept particles position, directin and speed!
+                foreach force p-id/proto/forces [
                     tmp: do reduce [:force p/3 p/4]
                     p/3: tmp/1
                     p/4: tmp/2
