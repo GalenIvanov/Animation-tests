@@ -10,7 +10,7 @@ ball: [
     [
         fill-pen 235.240.255.50
         pen transparent
-        circle 0x0 2  ; should be scaled automatically!!!
+        circle 0x0 2
     ]
     [
         fill-pen 235.250.255.80
@@ -33,10 +33,10 @@ wind: func [dir speed][
 ]
 
 motes: compose [
-    number:     300
+    number: 100
     emitter: has [
         {Intializes the spatial properties of a particle}
-    	x y d s ; x and y coordinates, direction and speed
+        x y d s ; x and y coordinates, direction and speed
     ][
         t: random 4
         either t < 3 [
@@ -48,7 +48,7 @@ motes: compose [
         ]
         d: 90.0
         s: 1.5 + random 0.2
-        reduce [x y d s]
+        compose [x: (x) y: (y) dir: (d) speed: (s)]
     ]
     absorber: function [
         {Returns true if the particle needs to be re-emitted}
@@ -69,27 +69,24 @@ burst: [
        y: 150.0
        d: random 360.0
        s: 0.5 + random 0.5
-       reduce [x y d s]
+       compose [x: (x) y: (y) dir: (d) speed: (s)]
     ]
-    absorber: function [x y d s][
-        120.0 < sqrt x - 300.0 ** 2 + (y - 200.0 ** 2)
-    ]
+    absorber: function [x y d s][120.0 < sqrt x - 300.0 ** 2 + (y - 200.0 ** 2)]
+    rewind: 150
     shapes:     sparks             
     forces:     [gravity]
 ]
 
 rocket: [
-    number:     20
+    number:  20
     emitter: has [x y d s][
        x: 450.0 + random 90.0
        y: 340.0
        d: 270.0
        s: 1.8 + random 1.5
-       reduce [x y d s]
+       compose [x: (x) y: (y) dir: (d) speed: (s)]
     ]
-    absorber: function [x y d s][
-        y < 60
-    ]
+    absorber: function [x y d s][y < 60]
     shapes: ship
     rewind: 100
 ]
