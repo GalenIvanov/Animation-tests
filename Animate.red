@@ -751,7 +751,6 @@ context [
             number:     100                  ; how many particles
             start:      1.0                  ; start time of the effect
             duration:   5.0                  ; duration of the effect
-;            emitter:    [0x100 200x100]      ; where particles are born - a box
             shapes:     speck                ; a block of draw blocks (shapes to be used to render particles)
             rewind:     0
             forces:     []                   ; what forces affect the particles motion - a block of words
@@ -763,17 +762,30 @@ context [
             on-exit:    []
         ]
         
+        a-particle: context [
+            x: 0.0
+            y: 0.0
+            dir: 45.0
+            speed: 1.3
+            scale-x: 1.0
+            scale-y: 1.0
+            color: white
+            shape: []
+            data: none
+        ]
+        
         create-particle: func [
             {Instantiates a sinlge particle using the prototype}
             proto [object!]
             /local p
         ][
             p: proto/emitter
-            p/1: 10.0 * p/1 
-            p/2: 10.0 * p/2
-            p/4: 10.0 * p/4
-            append/only p autoscale random/only proto/shapes
-
+            p: make a-particle p
+            p/x: 10.0 * p/x 
+            p/y: 10.0 * p/y
+            p/speed: 10.0 * p/speed
+            p/shape: autoscale random/only proto/shapes
+            p
         ]
         
         init-particles: func [
@@ -798,7 +810,7 @@ context [
             loop n [
                 p: create-particle proto 
                 append/only particles/spec p
-                d: compose/deep [translate (as-pair to-integer p/1 to-integer p/2) [(p/5)]]
+                d: compose/deep [translate (as-pair to-integer p/x to-integer p/y) [(p/shape)]]
                 append particles/draw d
             ]
             put particles-map (id-p: to-word rejoin [id "-" idx]) particles
@@ -819,27 +831,26 @@ context [
             repeat i length? ps [
                 p: ps/:i
                 ; check of it's time to respawn the particle
-                ;tmp: particles-map/:id/respawn 0.1 * p/1 0.1 * p/2
-                if p-id/proto/absorber 0.1 * p/1 0.1 * p/2 p/3 p/4 [
+                if p-id/proto/absorber 0.1 * p/x 0.1 * p/y p/dir p/speed [
                     new-p: p-id/proto/emitter
-                    p/1: 10.0 * new-p/1
-                    p/2: 10.0 * new-p/2
-                    p/3: new-p/3
-                    p/4: 10.0 * new-p/4
+                    p/x: 10.0 * new-p/x
+                    p/y: 10.0 * new-p/y
+                    p/dir: new-p/dir
+                    p/speed: 10.0 * new-p/speed
                 ]
                 
                 ; apply forces - they make changes in place
                 ; forces should accept particles position, directin and speed!
                 foreach force p-id/proto/forces [
-                    tmp: do reduce [:force p/3 p/4]
-                    p/3: tmp/1
-                    p/4: tmp/2
+                    tmp: do reduce [:force p/dir p/speed]
+                    p/dir: tmp/1
+                    p/speed: tmp/2
                 ]
                 
                 ; calculate new position
-                p/1:  p/4 * (cosine p/3) + p/1  
-                p/2:  p/4 * (  sine p/3) + p/2
-                pd/2: as-pair to-integer p/1 to-integer p/2
+                p/x:  p/speed * (cosine p/dir) + p/x  
+                p/y:  p/speed * (  sine p/dir) + p/y
+                pd/2: as-pair to-integer p/x to-integer p/y
                 pd: skip pd 3
             ]
         ]
