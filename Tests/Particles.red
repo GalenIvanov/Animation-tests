@@ -47,7 +47,7 @@ motes: compose [
             y: 50.0
         ]
         d: 90.0
-        s: 1.5 + random 0.2
+        s: 50.0 + random 10.0
         compose [x: (x) y: (y) dir: (d) speed: (s)]
     ]
     absorber: function [
@@ -56,25 +56,24 @@ motes: compose [
     ][
         to-logic any [x < 50 x > 150 y < 50 y > 350]
     ]
-    rewind:     120  ; how many times to update the particles immediately after initialization
-    shapes:     ball
-    forces:    [wind]
+    ffd:    4.0  ; how many seconds to fast forward the particles animation
+    shapes: ball
+    forces: [wind]
 ]
 
 burst: [
-    number:     300                
-    emitter:    [300x200 300x200] 
+    number:  300                
     emitter: has [x y d s][
        x: 300.0
        y: 150.0
        d: random 360.0
-       s: 0.5 + random 0.5
+       s: 150.0 + random 60.5
        compose [x: (x) y: (y) dir: (d) speed: (s)]
     ]
     absorber: function [x y d s][120.0 < sqrt x - 300.0 ** 2 + (y - 200.0 ** 2)]
-    rewind: 150
-    shapes:     sparks             
-    forces:     [gravity]
+    ffd: 2.5
+    shapes: sparks             
+    forces: [gravity]
 ]
 
 rocket: [
@@ -83,12 +82,12 @@ rocket: [
        x: 450.0 + random 90.0
        y: 340.0
        d: 270.0
-       s: 1.8 + random 1.5
+       s: 50.0 + random 30.0
        compose [x: (x) y: (y) dir: (d) speed: (s)]
     ]
     absorber: function [x y d s][y < 60]
     shapes: ship
-    rewind: 100
+    ffd: 2.0
 ]
 
 fnt: make font! [size: 15]
