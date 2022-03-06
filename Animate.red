@@ -11,6 +11,7 @@ random/seed now
 context [
 
     st-time: now/precise
+    prev-t: 0.0   ; 
     pascal: none
     text-data: make map! 20
     draw-blocks-data: make map! 20 
@@ -180,7 +181,7 @@ context [
     ]
     
     process-timeline: has [
-        t target v w d
+        t target v w d dt old-t
     ][
         t: to float! difference now/precise st-time
         
@@ -216,9 +217,11 @@ context [
         
         foreach [key effect] particles-map [
             proto: effect/proto
+            dt: to float! difference (old-t: now/precise) prev-t
+            prev-t: old-t
             if t >= proto/start [
                 either t <= (proto/start + proto/duration) [
-                    particle/update-particles to-word key
+                    particle/update-particles to-word key dt  
                 ][
                     if t > proto/expires [
                         clear at get key 3
@@ -736,7 +739,7 @@ context [
     set 'gravity func [dir speed][
         vx: speed * cosine dir
         vy: speed *   sine dir
-        vy: vy + 0.2  ; coef
+        vy: vy + 10.0  ; coef
         dir: arctangent2 vy vx
         speed: sqrt vx * vx + (vy * vy)
         reduce [dir speed]
@@ -748,18 +751,18 @@ context [
         ] 
     
         particle-base: make object! [
-            number:     100                  ; how many particles
-            start:      1.0                  ; start time of the effect
-            duration:   5.0                  ; duration of the effect
-            shapes:     speck                ; a block of draw blocks (shapes to be used to render particles)
-            rewind:     0
-            forces:     []                   ; what forces affect the particles motion - a block of words
-            started:    false
-            finished:   false
-            expires:    0                   ; when to clear the particle draw block
-            on-start:   []
-            on-time:    []
-            on-exit:    []
+            number:   100                  ; how many particles
+            start:    1.0                  ; start time of the effect
+            duration: 5.0                  ; duration of the effect
+            shapes:   speck                ; a block of draw blocks (shapes to be used to render particles)
+            ffd:      0
+            forces:   []                   ; what forces affect the particles motion - a block of words
+            started:  false
+            finished: false
+            expires:  0                   ; when to clear the particle draw block
+            on-start: []
+            on-time:  []
+            on-exit:  []
         ]
         
         a-particle: context [
@@ -815,12 +818,18 @@ context [
             ]
             put particles-map (id-p: to-word rejoin [id "-" idx]) particles
             append/only particles-draw particles/draw
-            loop proto/rewind [update-particles id-p] ; update the particle positions 
+            ;loop proto/ffd [update-particles id-p] ; update the particle positions 
+            ;prev-t: now/precise
+            ;update-particles id-p proto/ffd; update the particle positions 
+            loop 50 [update-particles id-p proto/ffd / 50.0] ; update the particle positions 
             particles-draw
         ]
         
+        prev-t: now/precise
+        
         update-particles: func [
             id [word!]
+            dt [float!]
             /local
                respawn i p ps pd p-id tmp new-p 
         ][
@@ -831,13 +840,13 @@ context [
             repeat i length? ps [
                 p: ps/:i
                 ; check of it's time to respawn the particle
-                if p-id/proto/absorber 0.1 * p/x 0.1 * p/y p/dir p/speed [
-                    new-p: p-id/proto/emitter
-                    p/x: 10.0 * new-p/x
-                    p/y: 10.0 * new-p/y
-                    p/dir: new-p/dir
-                    p/speed: 10.0 * new-p/speed
-                ]
+                ;if p-id/proto/absorber 0.1 * p/x 0.1 * p/y p/dir p/speed [
+                ;    new-p: p-id/proto/emitter
+                ;    p/x: 10.0 * new-p/x
+                ;    p/y: 10.0 * new-p/y
+                ;    p/dir: new-p/dir
+                ;    p/speed: 10.0 * new-p/speed
+                ;]
                 
                 ; apply forces - they make changes in place
                 ; forces should accept particles position, directin and speed!
@@ -848,10 +857,24 @@ context [
                 ]
                 
                 ; calculate new position
-                p/x:  p/speed * (cosine p/dir) + p/x  
-                p/y:  p/speed * (  sine p/dir) + p/y
+                ;p/x:  p/speed * (cosine p/dir) + p/x  
+                ;p/y:  p/speed * (  sine p/dir) + p/y
+                dist: dt * p/speed  ; elapsed time times speed
+                p/x:  dist * (cosine p/dir) + p/x  
+                p/y:  dist * (  sine p/dir) + p/y
+                
+                if p-id/proto/absorber 0.1 * p/x 0.1 * p/y p/dir p/speed [
+                    new-p: p-id/proto/emitter
+                    p/x: 10.0 * new-p/x
+                    p/y: 10.0 * new-p/y
+                    p/dir: new-p/dir
+                    p/speed: 10.0 * new-p/speed
+                ]
+                
                 pd/2: as-pair to-integer p/x to-integer p/y
                 pd: skip pd 3
+                
+                
             ]
         ]
     ]
@@ -2125,7 +2148,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ]
         
         insert-event-func :anim-on-time
-        st-time: now/precise
+        st-time: prev-t: now/precise
         draw-block
     ]
 ]
