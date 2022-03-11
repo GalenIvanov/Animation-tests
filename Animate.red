@@ -214,11 +214,12 @@ context [
                 ]
             ]    
         ]
-        
+
+        dt: to float! difference (old-t: now/precise) prev-t        
+        prev-t: old-t
         foreach [key effect] particles-map [
             proto: effect/proto
-            dt: to float! difference (old-t: now/precise) prev-t
-            prev-t: old-t
+            
             if t >= proto/start [
                 either t <= (proto/start + proto/duration) [
                     particle/update-particles to-word key dt  
@@ -731,18 +732,18 @@ context [
     ; always take 2 rguments: direction and speed
     ; should return a block [dir speed]
     ;-----------------------------------------------
-    set 'drag func [dir speed][
-        speed: speed * 0.99
-        reduce [dir speed]
+    set 'drag func [p][
+        p/speed: p/speed * 0.99
+        p
     ]
     
-    set 'gravity func [dir speed][
-        vx: speed * cosine dir
-        vy: speed *   sine dir
-        vy: vy + 10.0  ; coef
-        dir: arctangent2 vy vx
-        speed: sqrt vx * vx + (vy * vy)
-        reduce [dir speed]
+    set 'gravity func [p][
+        vx: p/speed * cosine p/dir
+        vy: p/speed *   sine p/dir
+        vy: vy + 10.0
+        p/dir: arctangent2 vy vx
+        p/speed: sqrt vx * vx + (vy * vy)
+        p
     ]
     
     particle: context [
@@ -766,14 +767,15 @@ context [
         ]
         
         a-particle: context [
-            x: 0.0
-            y: 0.0
-            dir: 45.0
-            speed: 1.3
-            scale-x: 1.0
-            scale-y: 1.0
-            color: white
-            shape: []
+            x: 0.0                ; X position
+            y: 0.0                ; Y position
+            dir: 45.0             ; movement direction in degrees
+            speed: 1.3            ; speed
+            scale-x: 1.0          ; X scale factor 
+            scale-y: 1.0          ; Y sckae factor
+            color: transparent    ; fill-pen color
+            t: 0.0                ; elapsed time for the particle
+            shape: []             ; drawing commands 
             data: none
         ]
         
@@ -802,6 +804,7 @@ context [
                 d n p id-p
         ][
             particles: make block! 2 * n: proto/number
+            proto: make a-particle proto
             append particles reduce [
                 'proto proto
                 'spec copy []
@@ -813,15 +816,16 @@ context [
             loop n [
                 p: create-particle proto 
                 append/only particles/spec p
-                d: compose/deep [translate (as-pair to-integer p/x to-integer p/y) [(p/shape)]]
+                d: compose/deep [
+                    translate (as-pair to-integer p/x to-integer p/y) [
+                        scale 1.0 1.0 fill-pen (p/color) (p/shape)
+                    ]
+                ]
                 append particles/draw d
             ]
             put particles-map (id-p: to-word rejoin [id "-" idx]) particles
             append/only particles-draw particles/draw
-            ;loop proto/ffd [update-particles id-p] ; update the particle positions 
-            ;prev-t: now/precise
-            ;update-particles id-p proto/ffd; update the particle positions 
-            loop 50 [update-particles id-p proto/ffd / 50.0] ; update the particle positions 
+            loop 100 [update-particles id-p proto/ffd / 100.0] ; update the particle positions 
             particles-draw
         ]
         
@@ -839,27 +843,14 @@ context [
             
             repeat i length? ps [
                 p: ps/:i
-                ; check of it's time to respawn the particle
-                ;if p-id/proto/absorber 0.1 * p/x 0.1 * p/y p/dir p/speed [
-                ;    new-p: p-id/proto/emitter
-                ;    p/x: 10.0 * new-p/x
-                ;    p/y: 10.0 * new-p/y
-                ;    p/dir: new-p/dir
-                ;    p/speed: 10.0 * new-p/speed
-                ;]
+                p/t: p/t + dt       ; force functions can use it
+                dist: dt * p/speed  ; elapsed time times speed
                 
                 ; apply forces - they make changes in place
                 ; forces should accept particles position, directin and speed!
-                foreach force p-id/proto/forces [
-                    tmp: do reduce [:force p/dir p/speed]
-                    p/dir: tmp/1
-                    p/speed: tmp/2
-                ]
+                foreach force p-id/proto/forces [p: do reduce [:force p]]
                 
                 ; calculate new position
-                ;p/x:  p/speed * (cosine p/dir) + p/x  
-                ;p/y:  p/speed * (  sine p/dir) + p/y
-                dist: dt * p/speed  ; elapsed time times speed
                 p/x:  dist * (cosine p/dir) + p/x  
                 p/y:  dist * (  sine p/dir) + p/y
                 
@@ -869,12 +860,15 @@ context [
                     p/y: 10.0 * new-p/y
                     p/dir: new-p/dir
                     p/speed: 10.0 * new-p/speed
+                    p/t: 0.0
+                    p/color: do p-id/proto/color
                 ]
                 
                 pd/2: as-pair to-integer p/x to-integer p/y
+                pd/3/2: p/scale-x
+                pd/3/3: p/scale-y
+                pd/3/5: p/color
                 pd: skip pd 3
-                
-                
             ]
         ]
     ]
