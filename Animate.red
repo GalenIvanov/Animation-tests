@@ -854,14 +854,18 @@ context [
                 p/x:  dist * (cosine p/dir) + p/x  
                 p/y:  dist * (  sine p/dir) + p/y
                 
-                if p-id/proto/absorber 0.1 * p/x 0.1 * p/y p/dir p/speed [
+                p-copy: copy p
+                p-copy/x: 0.1 * p-copy/x
+                p-copy/y: 0.1 * p-copy/y
+                
+                if p-id/proto/absorber p-copy [
                     new-p: p-id/proto/emitter
                     p/x: 10.0 * new-p/x
                     p/y: 10.0 * new-p/y
                     p/dir: new-p/dir
                     p/speed: 10.0 * new-p/speed
-                    p/t: 0.0
                     p/color: do p-id/proto/color
+                    p/t: 0.0
                 ]
                 
                 pd/2: as-pair to-integer p/x to-integer p/y
