@@ -15,7 +15,7 @@ accelerate: func [p][
 ]
 
 stars: [
-    number:  600
+    number: 800
     emitter: has [x y d s c][
         x: random 600.0
         y: random 400.0
@@ -23,12 +23,12 @@ stars: [
         s: 20.0 + random 10.0
         compose [x: (x) y: (y) dir: (d) speed: (s)]
     ]
-    absorber: function [x y d s][to-logic any [x < 0 x > 600 y < 0 y > 400]]
+    absorber: function [p][to-logic any [p/x < 0 p/x > 600 p/y < 0 p/y > 400]]
     ffd: 2.0
     shapes: [[circle 0x0 1]]
     scale-x: 0.1
     scale-y: 0.1
-    color: [200.200.200.255 + random 55.55.55.0]
+    color: [200.200.100.255 + random 55.55.155.0]
     forces: [accelerate]
 ]
 
@@ -37,8 +37,8 @@ d: [
     pen transparent
     box 0x0 600x400
 
-    start 0.0 duration 15.0 delay 2.0
-    particles test stars
+    start 0.0 duration 10.0
+    particles starfield stars
 ]
 
 print "Particles demo - Starfield"
