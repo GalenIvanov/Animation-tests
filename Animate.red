@@ -224,7 +224,7 @@ context [
                 either t <= (proto/start + proto/duration) [
                     particle/update-particles to-word key dt  
                 ][
-                    if t > proto/expires [
+                    if all [proto/expires <> 0 t > proto/expires] [
                         clear at get key 3
                         remove/key particles-map key
                     ]
@@ -848,7 +848,13 @@ context [
                 
                 ; apply forces - they make changes in place
                 ; forces should accept particles position, directin and speed!
+                p/x: p/x / 10.0
+                p/y: p/y / 10.0
+                
                 foreach force p-id/proto/forces [p: do reduce [:force p]]
+                
+                p/x: p/x * 10.0
+                p/y: p/y * 10.0
                 
                 ; calculate new position
                 p/x:  dist * (cosine p/dir) + p/x  
@@ -859,6 +865,7 @@ context [
                 p-copy/y: 0.1 * p-copy/y
                 
                 if p-id/proto/absorber p-copy [
+                    prin dot
                     new-p: p-id/proto/emitter
                     p/x: 10.0 * new-p/x
                     p/y: 10.0 * new-p/y
