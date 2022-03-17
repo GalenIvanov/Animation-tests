@@ -18,15 +18,15 @@ spin: function [p][
 stars: [
     number: 800
     emitter: function [][
-	    t: random 3             ; for the spiral arms 
-	    r: random 150           ; radius
-		a: t * 120 + random 75  ; angle
+        t: random 3             ; for the spiral arms 
+        r: random 150           ; radius
+        a: t * 120 + random 75  ; angle
         x: r * (cosine a) + cx  ; x oordinate
         y: r * (  sine a) + cy  ; y coordinate 
         s: 20                   ; speed
-		c: 100.80.50.0          ; base color 
-		c/:t: 100 + random 155  ; rgb channels
-		c/4: to-integer r * 1.5 ; more transparent away from the center - affects only the halo
+        c: 100.80.50.0          ; base color 
+        c/:t: 100 + random 155  ; rgb channels
+        c/4: to-integer r * 1.5 ; more transparent away from the center - affects only the halo
         compose [x: (x) y: (y) speed: (s) color: (c)]
     ]
     absorber: function [p][false] ; never respawn particles
@@ -41,9 +41,9 @@ d: [
 
     start 0.5 duration 25.0
     particles galaxy stars 
-	
-	fill-pen radial 255.190.120.0 255.150.80.40 255.127.20.150 255.0.0.255
-	circle 200x200 from 20 to 180  ; expanding glow
+    
+    fill-pen radial 255.190.120.0 255.150.80.40 255.127.20.150 255.0.0.255
+    circle 200x200 from 20 to 180  ; expanding glow
 ]
 
 print "Particles demo - Galaxy"
