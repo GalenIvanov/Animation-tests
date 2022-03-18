@@ -871,6 +871,8 @@ context [
                     p/dir: new-p/dir
                     p/speed: 10.0 * new-p/speed
                     p/color: do p-id/proto/color
+                    p/scale-x: new-p/scale-x
+                    p/scale-y: new-p/scale-y
                     p/t: 0.0
                 ]
                 
