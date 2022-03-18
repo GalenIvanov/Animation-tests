@@ -865,7 +865,6 @@ context [
                 p-copy/y: 0.1 * p-copy/y
                 
                 if p-id/proto/absorber p-copy [
-                    prin dot
                     new-p: p-id/proto/emitter
                     p/x: 10.0 * new-p/x
                     p/y: 10.0 * new-p/y
