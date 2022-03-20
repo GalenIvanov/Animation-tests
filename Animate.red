@@ -726,26 +726,7 @@ context [
         ]
     ]
     
-    
-    ;-----------------------------------------------
-    ; predifined forces effecting particles motion
-    ; always take 2 rguments: direction and speed
-    ; should return a block [dir speed]
-    ;-----------------------------------------------
-    set 'drag func [p][
-        p/speed: p/speed * 0.99
-        p
-    ]
-    
-    set 'gravity func [p][
-        vx: p/speed * cosine p/dir
-        vy: p/speed *   sine p/dir
-        vy: vy + 10.0
-        p/dir: arctangent2 vy vx
-        p/speed: sqrt vx * vx + (vy * vy)
-        p
-    ]
-    
+  
     particle: context [
         speck: [  ; a default template for particles
             [fill-pen 240.240.255.30 circle 0x0 5]
@@ -770,7 +751,7 @@ context [
             x: 0.0                ; X position
             y: 0.0                ; Y position
             dir: 45.0             ; movement direction in degrees
-            speed: 1.3            ; speed
+            speed: 1.0            ; speed
             scale-x: 1.0          ; X scale factor 
             scale-y: 1.0          ; Y sckae factor
             color: transparent    ; fill-pen color
@@ -865,7 +846,8 @@ context [
                 p-copy/y: 0.1 * p-copy/y
                 
                 if p-id/proto/absorber p-copy [
-                    new-p: p-id/proto/emitter
+                    ;new-p: p-id/proto/emitter
+                    new-p: make a-particle p-id/proto/emitter
                     p/x: 10.0 * new-p/x
                     p/y: 10.0 * new-p/y
                     p/dir: new-p/dir
