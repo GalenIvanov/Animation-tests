@@ -16,28 +16,34 @@ ball: [
         fill-pen 235.250.255.80
         pen transparent
         circle 0x0 4
-    ]       
+    ]        
 ]
 
 sparks: [
-    [box 0x0 2x2]
+    [fill-pen yello box 0x0 2x2]
     [fill-pen 255.120.10 rotate 45.0 box 0x0 4x4]
 ]
 
-ship: compose/deep [[rotate -45.0 [text 0x0 (form to-char 128640)]]]  ; U+1F680  
+ship: compose/deep [[rotate -45.0 [text 0x0 (form to-char 128640)]]]  ; U+1F680     
 
-wind: func [dir speed][
-    if dir < 135 [dir: 135 + dir / 2.0]
-    dir: dir + 2.0 - random 4.0
-    reduce [dir speed]
+wind: function [p][
+    if p/dir < 135 [p/dir: 135 + p/dir / 2.0]
+    p/dir: p/dir + 2.0 - random 4.0
+    p
+]
+
+gravity: function [p][
+    vx: p/speed * cosine p/dir
+    vy: p/speed *   sine p/dir
+    vy: vy + 10.0
+    p/dir: arctangent2 vy vx
+    p/speed: sqrt vx * vx + (vy * vy)
+    p
 ]
 
 motes: compose [
     number: 100
-    emitter: has [
-        {Intializes the spatial properties of a particle}
-        x y d s ; x and y coordinates, direction and speed
-    ][
+    emitter: function [][
         t: random 4
         either t < 3 [
             x: 150.0
@@ -52,42 +58,47 @@ motes: compose [
     ]
     absorber: function [
         {Returns true if the particle needs to be re-emitted}
-        x y d s ; x and y coordinates, direction and speed of the particle
+        p
     ][
-        to-logic any [x < 50 x > 150 y < 50 y > 350]
+        to-logic any [p/x < 50 p/x > 150 p/y < 50 p/y > 350]
     ]
-    ffd:    4.0  ; how many seconds to fast forward the particles animation
+    ffd:    4.0     ; how many seconds to fast forward the particles animation
     shapes: ball
     forces: [wind]
 ]
 
 burst: [
     number:  300                
-    emitter: has [x y d s][
+    emitter: function [][
        x: 300.0
        y: 150.0
        d: random 360.0
-       s: 150.0 + random 60.5
-       compose [x: (x) y: (y) dir: (d) speed: (s)]
+       s: 40.0 + random 15.0
+       compose [x: (x) y: (y) dir: (d) speed: (s) t: (random 8.0)]
     ]
-    absorber: function [x y d s][120.0 < sqrt x - 300.0 ** 2 + (y - 200.0 ** 2)]
-    ffd: 2.5
-    shapes: sparks             
+    absorber: function [p][
+        to-logic any [
+            p/t > 5.0
+            120.0 < sqrt p/x - 300.0 ** 2 + (p/y - 200.0 ** 2)
+        ]    
+    ]
+    ffd: 5.0
+    shapes: sparks               
     forces: [gravity]
 ]
 
 rocket: [
     number:  20
-    emitter: has [x y d s][
+    emitter: function [][
        x: 450.0 + random 90.0
        y: 340.0
        d: 270.0
-       s: 50.0 + random 30.0
+       s: 50.0 + random 50.0
        compose [x: (x) y: (y) dir: (d) speed: (s)]
     ]
-    absorber: function [x y d s][y < 60]
+    absorber: function [p][p/y < 60]
     shapes: ship
-    ffd: 2.0
+    ffd: 5.0
 ]
 
 fnt: make font! [size: 15]
@@ -105,7 +116,7 @@ d: [
     
     pen transparent fill-pen papaya
     particles vulcano burst expires after 6 on-start [print "Vulcano"] on-exit [print "Vulcano finished"]
-    fill-pen transparent pen papaya  circle 300x200 125
+    fill-pen transparent pen papaya     circle 300x200 125
     
     font fnt
     particles fleet rocket expires after 6 on-start [print "Rockets"] on-exit [print "Rockets finished"]
