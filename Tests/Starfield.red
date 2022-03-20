@@ -21,6 +21,7 @@ stars: [
         y: random 400.0
         d: arctangent2 y - 200 x - 300
         s: 20.0 + random 10.0
+        ;compose [x: (x) y: (y) dir: (d) speed: (s) scale-x: 1.0 scale-y: 1.0]
         compose [x: (x) y: (y) dir: (d) speed: (s)]
     ]
     absorber: function [p][to-logic any [p/x < 0 p/x > 600 p/y < 0 p/y > 400]]
