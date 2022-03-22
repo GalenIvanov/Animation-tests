@@ -10,39 +10,28 @@ tree: [
     shape [line 20x20 5x20 35x50 10x50 50x90 -50x90 -10x50 -35x50 -5x20 -20x20 0x0]
 ]
 
-flakes: [
-    [
-        fill-pen 235.240.255.50
-        pen transparent
-        circle 0x0 2
-    ]
-    [
-        fill-pen 235.250.255.100
-        pen transparent
-        circle 0x0 3
-    ]
-    [text 0x0 "❅"]
-]
-
-random-dir: func [dir speed][
-    dir: dir + 1.0 - random 2.0
-    reduce [dir speed]
+random-dir: function [p] [
+    p/color: 255.255.255.255
+    p/color/4: tween 255 0 p/t 'ease-in-out-cubic
+    p/dir: p/dir + 1.0 - random 2.0
+    p
 ]
 
 snow-obj: compose [
-    number:     1000
-    emitter:    [0x0 600x400]
-    direction:  90.0    
-    dir-rnd:    0.0
-    speed:      10.0
-    speed-rnd:  5.0
-    shapes:     flakes
-    forces:     [random-dir gravity]
-    limits:     [y > 400]
-    new-coords: [x: random 600.0 y: -10.0]
+    number:  800
+    emitter: function [][
+        x: random 600
+        y: -100 + random 500
+        s: 20.0 + random 15.0
+        sc: 0.5 + random 1.0
+        compose [x: (x) y: (y) dir: 90 speed: (s) scale-x: (sc) scale-y: (sc)]
+    ]
+    shapes: [[circle 0x0 2]]
+    forces: [random-dir]
+    ffd: 0.0
+    absorber: function [p][p/y > 395]
 ]
 
-fnt-snow: make font! [style: 'bold size: 10 color: 240.240.240.80]
 fnt1: make font! [style: 'bold size: 23 color: gold]
 fnt2: make font! [style: 'bold size: 23 color: black]
 
@@ -54,11 +43,11 @@ scene: compose/deep [
     fill-pen 80.100.180
     pen transparent
     box 0x0 600x400
-    fill-pen 220.220.235
-	
+    fill-pen 230.235.245
+    
     shape [
         move -10x250
-        curv  120x200 300x270 500x300 700x320
+        curv 120x200 300x270 500x300 700x320
         line 700x510 -10x410 -10x350
     ]
     translate  70x220 [scale 0.25 0.25 (tree)]
@@ -70,12 +59,10 @@ scene: compose/deep [
     fill-pen 245.245.255
     shape [
         move -10x300
-		start 0 duration 0.5 ease 'ease-in-out-quad
-        curv -10x350 from 280x380 to 280x280 550x320 700x320
+        curv -10x350 280x280 550x320 700x320
         line 750x510 -10x410 -10x350
     ]
     
-    font fnt-snow
     start 0.0 duration 20.0 
     particles snow snow-obj expires after 10
     
@@ -100,8 +87,6 @@ scene: compose/deep [
     fill-pen from 0.0.0.255 to 0.0.0.0 on-exit [quit]
     box 0x0 600x400
 ]
-
-print "start"
 
 view [
     canvas: base 600x400 rate 67
