@@ -33,11 +33,14 @@ context [
         dur:        1.0          ; duration of the animation
         delay:      0.0          ; delay between successive subanimations
         loop-count: 1            ; repetitions of the effect in time
-        bi-dir:     off          ; does the animation runs backwards too? 
+        bi-dir:     false        ; does the animation runs backwards too? 
         started:    false        ; has the animation started?
-        on-start:   []           ; actor   
+        paused:     false        ; true if the animation has been paused
+        elapsed:    0.0          ; elapsed time from the animation start
+        speed:      1.0          ; animation speed
+        on-start:   []           ; actor
         on-time:    []           ; actor
-        on-exit:    []           ; actor  
+        on-exit:    []           ; actor 
         ease:       none         ; easing function
         
     ]
@@ -184,42 +187,50 @@ context [
         t target v w d dt old-t
     ][
         t: to float! difference now/precise st-time
-        
-        foreach [key val] timeline [
-            w: val/2
-            if t > w/start[
-                unless w/started [
-                    do w/on-start
-                    w/started: true
-                ]
-                either t < (w/start + w/dur) [
-                    tt: t - w/start / w/dur
-                    if w/val1 <> w/val2 [set val/1 tween w/val1 w/val2 tt :w/ease]
-                    bind w/on-time context compose [time: (t)]  ; makes elapsed time visible to the caller as "time"
-                    do w/on-time
-                ][
-                    d: w/dur
-                    if w/bi-dir [d: d * 2]        ; two-way loop - reset after 2 x duration
-                    either w/loop-count = -1 [    ; loop forever
-                        w/start: w/start + d
-                    ][ 
-                        either w/loop-count > 1 [
-                            w/loop-count: w/loop-count - 1
-                            w/start: w/start + d
-                        ][
-                            do w/on-exit
-                            remove/key timeline key
-                        ]    
-                    ]                    
-                ]
-            ]    
-        ]
-
         dt: to float! difference (old-t: now/precise) prev-t        
         prev-t: old-t
+        
+        t-keep: t
+        foreach [key val] timeline [
+            w: val/2
+            unless w/paused [
+                w/elapsed: w/elapsed + dt 
+                t: t * w/speed
+                if t > w/start[
+                    unless w/started [
+                        do w/on-start
+                        w/started: true
+                    ]
+                    either t < (w/start + w/dur) [
+                        tt: t - w/start / w/dur
+                        if w/val1 <> w/val2 [set val/1 tween w/val1 w/val2 tt :w/ease]
+                        bind w/on-time context compose [time: (t)]  ; makes elapsed time visible to the caller as "time"
+                        do w/on-time
+                    ][
+                        d: w/dur
+                        if w/bi-dir [d: d * 2]        ; two-way loop - reset after 2 x duration
+                        either w/loop-count = -1 [    ; loop forever
+                            w/start: w/start + d
+                        ][ 
+                            either w/loop-count > 1 [
+                                w/loop-count: w/loop-count - 1
+                                w/start: w/start + d
+                            ][
+                                do w/on-exit
+                                remove/key timeline key
+                            ]    
+                        ]                    
+                    ]
+                ]
+                t: t-keep
+            ]
+        ]
+
+        
+        dt-keep: dt
         foreach [key effect] particles-map [
             proto: effect/proto
-            
+            dt: proto/t-speed * dt
             if t >= proto/start [
                 either t <= (proto/start + proto/duration) [
                     particle/update-particles to-word key dt  
@@ -230,10 +241,12 @@ context [
                     ]
                 ]
             ]
+            dt: dt-keep
         ]
         
         foreach [key v] curve-fx-map [
             target: 0.0
+            t: v/speed * t
             if t >= v/start [
                 either t <= (v/start + v/dur * 1.01) [
                     if lit-word? :v/ease [v/ease: in easings :v/ease]
@@ -250,6 +263,7 @@ context [
                     ]   
                 ]               
             ]
+            t: t-keep
         ]
         
         ;clean-up text-fx
@@ -262,6 +276,7 @@ context [
         
         foreach [key v] stroke-path-map [
             target: 0.0
+            t: v/speed * t
             if t >= v/start [
                 either t <= (v/start + v/duration) [
                     if lit-word? :v/ease [v/ease: in easings :v/ease]
@@ -276,9 +291,11 @@ context [
                     ]    
                 ]
             ]
+            t: t-keep
         ]
         
         foreach [key v] morph-path-map [
+            t: v/speed * t
             s: v/started
             if all [t > v/start not s][
                 clear p: get to-path reduce [to-word key 1]
@@ -302,9 +319,10 @@ context [
                     ]    
                 ]
             ]
+            t: t-keep
         ]
         
-        ani-start/2: 0.1  ; refresh the draw block in case onli font or image parameters have been changed
+        ani-start/2: 0.1  ; refresh the draw block in case only font or image parameters have been changed
     ]
     
     ;------------------------------------------------------------------------------------------------
@@ -726,7 +744,6 @@ context [
         ]
     ]
     
-  
     particle: context [
         speck: [  ; a default template for particles
             [fill-pen 240.240.255.30 circle 0x0 5]
@@ -795,7 +812,7 @@ context [
             append particles-draw compose [(to-set-word rejoin [id "-" idx]) translate 0x0]
             
             loop n [
-                p: create-particle proto 
+                p: create-particle proto
                 append/only particles/spec p
                 d: compose/deep [
                     translate (as-pair to-integer p/x to-integer p/y) [
@@ -846,7 +863,6 @@ context [
                 p-copy/y: 0.1 * p-copy/y
                 
                 if p-id/proto/absorber p-copy [
-                    ;new-p: p-id/proto/emitter
                     new-p: make a-particle p-id/proto/emitter
                     p/x: 10.0 * new-p/x
                     p/y: 10.0 * new-p/y
@@ -956,6 +972,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     from-on-time: copy []
     from-on-exit: copy []
     scale-coef: 1.0
+    time-scale: 1.0
     
     ; global event handler 
     anim-on-time: func [face event][
@@ -964,7 +981,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     ]
     
     make-effect: does [
-        ani-bl: copy/part to-block effect 22
+        ani-bl: copy/part to-block effect 28
         append ani-bl [ease: none] 
         ani-bl/val1: v1
         ani-bl/val2: v2
@@ -974,6 +991,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ani-bl/loop-count: 1
         ani-bl/bi-dir: off
         ani-bl/ease: any [:ease-v to lit-word! "ease-linear"]
+        ani-bl/speed: time-scale
         ani-bl/on-start: from-on-start 
         ani-bl/on-time: from-on-time
         ani-bl/on-exit: from-on-exit
@@ -1072,6 +1090,8 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ]      
     ]
     
+    anim-speed: ['speed p: number! (time-scale: to-float p/1)]
+    
     word-val: [
         w: word!
         if (not find draw-words lowercase form w/1) 
@@ -1088,7 +1108,8 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     from: [
         [
             'from p1: [[set v1 keep-word-val ] | value keep (scaled) (v1: scaled)]
-            'to p2: from-value (clear-anim-actors)
+            'to p2: from-value (clear-anim-actors time-scale: 1.0)
+            opt anim-speed
             opt anim-actors
         ] (
             make-effect
@@ -1166,6 +1187,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         'particles (
             particles-end: 0
             clear-anim-actors
+            time-scale: 1.0
         )
         set p-id word!
         set p-proto [word! | block!]
@@ -1173,24 +1195,28 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
            prt: either word? p-proto [get p-proto][p-proto]
            append prt compose [start: (start-v)]
            append prt compose [duration: (dur-v)]
+           append prt [t-speed: 1.0]
         )
-        opt [
+        any [
+            anim-speed (prt/t-speed: time-scale prt/duration: prt/duration / time-scale)
+          | [
                 'expires [
                     ['after set particles-end number!] 
                   | 'never
                 ]
                 (if particles-end > 0 [append prt compose [expires: (max start-v + dur-v start-v + particles-end)]])
-        ]
-        opt anim-actors
-        (
-           v1: v2: 0
-           make-effect  ; for a dummy tween that will manage actors
-           cur-target: 'dummy
-           cur-effect: make effect ani-bl
-           put timeline p-id reduce [cur-target cur-effect]
-           start-v: start-v + delay-v
-           from-count: from-count + 1
-        )   
+            ]
+          | anim-actors
+            (
+               v1: v2: 0
+               make-effect  ; for a dummy tween that will manage actors
+               cur-target: 'dummy
+               cur-effect: make effect ani-bl
+               put timeline p-id reduce [cur-target cur-effect]
+               start-v: start-v + delay-v
+               from-count: from-count + 1
+            )
+        ]    
         keep (particle/init-particles p-id make particle/particle-base prt cur-idx)
     ]
     
@@ -1201,6 +1227,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                 curve-fx-end: 0
                 ease-v: any [:ease-v to lit-word! "ease-linear"]
                 clear-anim-actors
+                time-scale: 1.0
             )
             set crv-id word!
             set crv-data [block! | word!] 
@@ -1208,19 +1235,22 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                 ['from set v1 float! 'to set v2 float!]
                 | set v1 float!
             ]
-            opt [
-                'expires [
-                    ['after set curve-fx-end number!] 
-                  | 'never
-                ]  
-            ]
-            opt anim-actors (
+            any [
+                 anim-speed
+             | [
+                    'expires [
+                        ['after set curve-fx-end number!] 
+                      | 'never
+                    ]  
+                ]
+               | anim-actors (
                 make-effect  ; for a dummy tween that will manage actors
                 cur-target: 'dummy
                 cur-effect: make effect ani-bl
                 put timeline crv-id reduce [cur-target cur-effect]
-            )
-        ]
+                )
+            ]
+        ]    
         (
             v2: any [v2 v1]
             if curve-fx-end > 0 [curve-fx-end: max start-v + curve-fx-end start-v + dur-v]
@@ -1242,6 +1272,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                 ease: (any [:ease-v (to lit-word! "ease-linear")])
                 expires: (curve-fx-end)
                 type: (fx-type)
+                speed: (time-scale)
             ]
            
             cur-idx: cur-idx + 1            
@@ -1410,24 +1441,27 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         keep (either new-fx [fx-data][[]]) (new-fx: false)
         any [ 
         opt [
-            'text-scale
-            from-text (val1: reduce [v1 v2])
+            'text-scale (time-scale: 1.0)
+            from-text (val1: reduce [v1 v2] time-scale: 1.0)
             from-text (val2: reduce [v1 v2])
+            opt anim-speed
             opt anim-actors (
                 text-fx-actors
                 scale-text-fx t-obj val1 val2 start-v
             )    
         ]
         opt [
-            'text-move
+            'text-move (time-scale: 1.0)
             set v1 value (text-move t-obj v1 start-v)
+            opt anim-speed
             opt anim-actors (
                 text-fx-actors
             )
         ]
         opt [
-            'text-color
+            'text-color (time-scale: 1.0)
             from-text (text-color t-obj v1 v2 start-v)
+            opt anim-speed
             opt anim-actors (
                 text-fx-actors
             )    
@@ -1558,6 +1592,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             count:     (seg-n)
             cur-count: 0
             ease:      (any [:ease-v (to lit-word! "ease-linear")])
+            speed:     (time-scale)
         ]
         
         color: transparent
@@ -1685,21 +1720,25 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             ease-v: any [:ease-v to lit-word! "ease-linear"]
             stroke-path-end: 0
             clear-anim-actors
+            time-scale: 1.0
         )
         set path-id word! (path-block: make block! 50)
         path 
         'width set width integer!
         'color set color [tuple! | word!]
-        opt [
-            'expires [
-            [
-                'after set stroke-path-end number!
-                (stroke-path-end: start-v + max stroke-path-end dur-v)
+        any [
+            anim-speed
+         | [
+                'expires [
+                    [
+                        'after set stroke-path-end number!
+                        (stroke-path-end: start-v + max stroke-path-end dur-v)
+                    ]
+                  | 'never
+                ]
             ]
-          | 'never
-          ]
-        ]
-        opt anim-actors (
+          | anim-actors
+        ] (
             v1: v2: 0
             make-effect  ; for a dummy tween that will manage actors
             cur-target: 'dummy
@@ -1712,6 +1751,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             from-count: from-count + 1
             cur-idx: cur-idx + 1
         )
+
         keep (to-set-word path-id)
         keep (new-block)
     ]
@@ -1874,6 +1914,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             end-block: [(lines-2)]
             ease: (ease-v)
             started: (false)
+            speed: (time-scale)
         ]
     ]
     
@@ -1888,15 +1929,19 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         path (path1: copy path-block clear path-block)
         'into
         path (path2: copy path-block)
-        opt ['visible set show-first word! (show-first: get show-first)] 
-        opt [
-            'expires [
-                ['after set morph-path-end number! 
-                (morph-path-end: start-v + max morph-path-end dur-v)]
-          | 'never
+        any [
+            anim-speed
+          | ['visible set show-first word! (show-first: get show-first)] 
+          | [
+                'expires [
+                    ['after set morph-path-end number! 
+                    (morph-path-end: start-v + max morph-path-end dur-v)]
+              | 'never
+                ]
             ]
+          | anim-actors 
         ]
-        opt anim-actors (
+        (
             v1: v2: 0
             make-effect  ; for a dummy tween that will manage actors
             target: to-word rejoin ["morph-" cur-idx]
@@ -2042,7 +2087,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         word 
         opt [ahead pair-val from-pair (val-idx: 3 val-ofs: val-ofs + 1)] ; center
         3 [from-number (val-ofs: val-ofs + 1)]    ; rotation angle, scale X, scale Y
-        (val-idx: 1)                              ; to account for 
+        (val-idx: 1)                              
         from-pair                                 ; translation amount
         opt into anim-rule                        ; block of Draw commands 
     ]
@@ -2126,8 +2171,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ;probe draw-block
         ;probe timeline
         
-        probe morph-path-map
-                
+
         test-img: make image! [100x100 0.0.0.0]
         if error? draw-err: try [draw test-img copy draw-block][
             print "Invalid drawing command at:" 
