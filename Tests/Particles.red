@@ -6,6 +6,8 @@ Red [
 
 #include %../Animate.red
 
+t-sc: 2.0  ; time-scale
+
 ball: [
     [
         fill-pen 235.240.255.50
@@ -35,7 +37,7 @@ wind: function [p][
 gravity: function [p][
     vx: p/speed * cosine p/dir
     vy: p/speed *   sine p/dir
-    vy: vy + 10.0
+    vy: 10.0 * t-sc + vy  ; adjusted by the time-scale (animation speed)
     p/dir: arctangent2 vy vx
     p/speed: sqrt vx * vx + (vy * vy)
     p
@@ -103,23 +105,23 @@ rocket: [
 
 fnt: make font! [size: 15]
 
-d: [
+d: compose [
     fill-pen black
     pen transparent
     box 0x0 600x400
     
     start 0.0 duration 5.0 delay 2.0
     
-    particles test motes expires after 6 on-start [print "Motes"] on-exit [print "Motes finished"]
+    particles test motes expires after 6 speed 0.5 on-start [print "Motes"] on-exit [print "Motes finished"]
     line-width 8 pen white fill-pen transparent
     box 50x50 150x350
     
     pen transparent fill-pen papaya
-    particles vulcano burst expires after 6 on-start [print "Vulcano"] on-exit [print "Vulcano finished"]
-    fill-pen transparent pen papaya     circle 300x200 125
+    particles vulcano burst speed (t-sc) expires after 6 on-start [print "Vulcano"] on-exit [print "Vulcano finished"]
+    fill-pen transparent pen papaya circle 300x200 125
     
     font fnt
-    particles fleet rocket expires after 6 on-start [print "Rockets"] on-exit [print "Rockets finished"]
+    particles fleet rocket on-start [print "Rockets"] on-exit [print "Rockets finished"] expires after 6 speed 1.5
     pen sky box 460x50 570x350
 ]
 
