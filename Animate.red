@@ -24,6 +24,7 @@ context [
     scaled-fonts: copy []
     stroke-path-map: make map! 10
     morph-path-map: make map! 10
+    two-way-map: make map! 10   ; keeps a track of the way each two-way loop is running
     dummy: 0
     
     effect: make object! [
@@ -33,7 +34,8 @@ context [
         dur:        1.0          ; duration of the animation
         delay:      0.0          ; delay between successive subanimations
         loop-count: 1            ; repetitions of the effect in time
-        bi-dir:     false        ; does the animation runs backwards too? 
+        bi-dir:     false        ; does the animation runs backwards too?
+        dir:        'forth       ; which way a two-way loop is going
         started:    false        ; has the animation started?
         paused:     false        ; true if the animation has been paused
         elapsed:    0.0          ; elapsed time from the animation start
@@ -194,9 +196,9 @@ context [
         foreach [key val] timeline [
             w: val/2
             unless w/paused [
-                w/elapsed: w/elapsed + dt
                 t: t * w/speed
                 if t > w/start[
+                    w/elapsed: w/elapsed + dt
                     unless w/started [
                         do w/on-start
                         w/started: true
@@ -206,6 +208,12 @@ context [
                         if w/val1 <> w/val2 [set val/1 tween w/val1 w/val2 tt :w/ease]
                         bind w/on-time context compose [time: (t)]  ; makes elapsed time visible to the caller as "time"
                         do w/on-time
+                        id: key
+                        if w/dir = 'back [
+                           parse to-string id [copy t-id to ["_r" end]]
+                           id: to-word t-id
+                        ]
+                        if w/bi-dir [two-way-map/:id: w/dir]
                     ][
                         d: w/dur
                         w/elapsed: 0.0
@@ -324,35 +332,35 @@ context [
         
         ani-start/2: 0.1  ; refresh the draw block in case only font or image parameters have been changed
     ]
-	
-	set 'pause-resume function [
-	    id
-	][
-	    t: to float! difference now/precise st-time
-		id-txt: id
-		unless error? try [id: timeline/(to-set-word id)/2][
-		    bi?: id/bi-dir
-	        id/paused: not id/paused
-			if bi? [
-			    id_r: timeline/(to-set-word rejoin [id-txt "_r"])/2
-				id_r/paused: not id_r/paused
-			]
-			
-		    either id/paused [
-		    	print [id-txt "Paused at" t ". Elapsed animation time:" id/elapsed]
-		    ][
-		        id/start: t - id/elapsed
-				;if bi? [id_r/start: t - id_r/elapsed]
-				if bi? [
-				    ;id/start: id/start + (id/elapsed / 2)
-				    id_r/start: t + (id/dur / 2) - id/elapsed
-					
-				]
-		    	print [id-txt "resumed at" t ". Elapsed animation time:" id/elapsed]
-		    ]
-		]
-	]
-	
+    
+    set 'pause-resume function [
+        id
+    ][
+        t: to float! difference now/precise st-time
+        id-txt: id
+        unless error? try [id: timeline/(to-set-word id)/2][
+            bi?: id/bi-dir
+            id/paused: not id/paused
+            probe two-way-map
+            if bi? [
+                id_r: timeline/(to-set-word rejoin [id-txt "_r"])/2
+                id_r/paused: not id_r/paused
+            ]
+            
+            either id/paused [
+                print [id-txt "Paused at" t ". Elapsed animation time:" id/elapsed]
+            ][
+                id/start: t - id/elapsed
+                ; calculate the starts of the fortah and back animations
+                if bi? [
+                   either two-way-map/:id-txt = 'forth [
+                   ][
+                   ]
+                ]
+            ]
+        ]
+    ]
+    
     
     ;------------------------------------------------------------------------------------------------
     pascals-triangle: function [
@@ -969,7 +977,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     ;;;;
     ani-bl: copy []
     draw-block: make block! 1000
-    cur-effect: make block! 20
+    cur-effect: make block! 30
     delay-v: 0.0
     start-v: 0.0
     start-anchor: 0
@@ -1002,7 +1010,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     from-on-exit: copy []
     scale-coef: 1.0
     time-scale: 1.0
-	from-lbl: none
+    from-lbl: none
     
     ; global event handler 
     anim-on-time: func [face event][
@@ -1011,7 +1019,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     ]
     
     make-effect: does [
-        ani-bl: copy/part to-block effect 28
+        ani-bl: copy/part to-block effect 30
         append ani-bl [ease: none] 
         ani-bl/val1: v1
         ani-bl/val2: v2
@@ -1020,6 +1028,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ani-bl/delay: any [delay-v 0.0]
         ani-bl/loop-count: 1
         ani-bl/bi-dir: off
+        ani-bl/dir: to-lit-word "forth"
         ani-bl/ease: any [:ease-v to lit-word! "ease-linear"]
         ani-bl/speed: time-scale
         ani-bl/on-start: from-on-start 
@@ -1137,12 +1146,12 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     
     from: [
         [
-		    p: opt set-word!
+            p: opt set-word!
             'from (from-lbl: none) p1: [[set v1 keep-word-val ] | value keep (scaled) (v1: scaled)]
             'to p2: from-value (
-			    clear-anim-actors time-scale: 1.0
-				if set-word? p/1 [probe from-lbl: p/1]  ; labeled animation
-			)
+                clear-anim-actors time-scale: 1.0
+                if set-word? p/1 [probe from-lbl: p/1]  ; labeled animation
+            )
             opt anim-speed
             opt anim-actors
         ] (
@@ -1150,28 +1159,28 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             ani-bl/loop-count: loop-n
             cur-effect: make effect ani-bl
             trgt: to-path reduce [to-word cur-target val-ofs]
-			timeline-entry: any [
-			    from-lbl
-				to-string trgt
-			]
+            timeline-entry: any [
+                from-lbl
+                to-string trgt
+            ]
             cur-effect/start: start-v
             either bi-dir [
+                put two-way-map timeline-entry 'forth
                 ani-bl/start: start-v
                 ani-bl/dur: ani-bl/dur / 2.0
                 ani-bl/bi-dir: on
-                cur-effect: make effect ani-bl
+                probe cur-effect: make effect ani-bl
                 cur-effect/on-exit: copy []  ; on-exit will trigger only at the backward tween
-                ;put timeline to-string trgt reduce [trgt cur-effect]  ; forward
-				put timeline timeline-entry reduce [trgt cur-effect] ; forward
+                put timeline timeline-entry reduce [trgt cur-effect] ; forward
                 ani-bl/start: start-v + ani-bl/dur
                 tmp: ani-bl/val1
                 ani-bl/val1: ani-bl/val2
                 ani-bl/val2: tmp
+                ani-bl/dir: to-lit-word "back"
                 cur-effect: make effect ani-bl 
                 cur-effect/on-start: copy []  ; on-start wiil be trigegered only for the forward tween 
-                ;put timeline rejoin [form trgt "_r"] reduce [trgt cur-effect] ; backward
-				put timeline to-word rejoin [timeline-entry "_r"] reduce [trgt cur-effect] ; backward
-				probe timeline
+                put timeline to-word rejoin [timeline-entry "_r"] reduce [trgt cur-effect] ; backward
+                probe timeline
             ][
                 ;put timeline to-string trgt reduce [trgt cur-effect]
                 put timeline timeline-entry reduce [trgt cur-effect]
@@ -2212,6 +2221,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
 
         ;probe draw-block
         ;probe timeline
+        ;probe two-way-map
         
         test-img: make image! [100x100 0.0.0.0]
         if error? draw-err: try [draw test-img copy draw-block][
