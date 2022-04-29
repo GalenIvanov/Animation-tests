@@ -341,21 +341,26 @@ context [
         unless error? try [id: timeline/(to-set-word id)/2][
             bi?: id/bi-dir
             id/paused: not id/paused
-            probe two-way-map
+            elapsed: id/elapsed
             if bi? [
                 id_r: timeline/(to-set-word rejoin [id-txt "_r"])/2
                 id_r/paused: not id_r/paused
+                elapsed: id_r/elapsed
             ]
             
             either id/paused [
-                print [id-txt "Paused at" t ". Elapsed animation time:" id/elapsed]
+                print [id-txt "Paused at" t ". Elapsed animation time:" elapsed]
             ][
                 id/start: t - id/elapsed
-                ; calculate the starts of the fortah and back animations
+                ; calculate the starts of the forth and back animations
                 if bi? [
-                   either two-way-map/:id-txt = 'forth [
-                   ][
-                   ]
+                    ;probe two-way-map/:id-txt
+                    either two-way-map/:id-txt = 'forth [
+                        id_r/start: t - id_r/elapsed + id/dur
+                    ][
+                        id_r/start: t - id_r/elapsed
+                        id/start: id_r/start + id/dur
+                    ]
                 ]
             ]
         ]
