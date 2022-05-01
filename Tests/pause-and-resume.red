@@ -6,29 +6,43 @@ Red [
 
 #include %../Animate.red
 
+fnt1: make font! [name: "Verdana" size: 10 color: black]
+
 anim: compose/deep [
     fill-pen beige
-	box 0x0 600x110
+    box 0x0 600x140
     fill-pen black
 
-    line 30x35 565x35
-	start 0 duration 5 ease 'ease-in-out-cubic
-    translate black-box: from 30x25 to 550x25 speed 1.0[box 0x0 20x20]
-	
-	line 30x75 565x75
-	fill-pen white
-	start 0 duration 4 loop two-way forever
-    translate white-box: from 30x65 to 550x65 speed 1.5 [box 0x0 20x20]
-	
+    font fnt1
+    text 30x25 "No loop"
+    line 30x55 565x55
+    start 1 duration 10 ; ease 'ease-in-out-cubic
+    translate black-box: from 30x45 to 550x45 speed 1.0[box 0x0 20x20]
+    
+    text 30x75 "Loop two-way forever"
+    line 30x105 565x105
+    fill-pen white
+    start 0 duration 4 loop two-way forever
+    translate white-box: from 30x95 to 550x95 speed 1.0 [box 0x0 20x20]
+]
+
+change-caption: function [caption state][
+    rejoin [pick ["Pause " "Resume "] state: not state caption]
 ]
 
 print "Pausing and resuming animations"
 
 view [
-    title "Animation speed"
-	below
-	base 600x110 beige rate 65 draw animate anim
-	across
-	button "Pause black" [pause-resume 'black-box]
-	button "Pause white"  [pause-resume 'white-box]
+    title "Pausing and resuming animations"
+    below
+    base 600x140 beige rate 67 draw animate anim
+    across
+    button "Pause black" data on [
+        toggle-animation 'black-box
+        face/text: change-caption "black" face/data
+    ] 
+    button "Pause white" data on [
+        toggle-animation 'white-box
+        face/text: change-caption "white" face/data
+    ]
 ]
