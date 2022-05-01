@@ -333,7 +333,7 @@ context [
         ani-start/2: 0.1  ; refresh the draw block in case only font or image parameters have been changed
     ]
     
-    set 'pause-resume function [
+    set 'toggle-animation function [
         id
     ][
         t: to float! difference now/precise st-time
@@ -348,15 +348,12 @@ context [
                 elapsed: id_r/elapsed
             ]
             
-            either id/paused [
-                print [id-txt "Paused at" t ". Elapsed animation time:" elapsed]
-            ][
+            unless  id/paused [
                 id/start: t - id/elapsed
                 ; calculate the starts of the forth and back animations
                 if bi? [
-                    ;probe two-way-map/:id-txt
                     either two-way-map/:id-txt = 'forth [
-                        id_r/start: t - id_r/elapsed + id/dur
+                        id_r/start: id/start + id/dur
                     ][
                         id_r/start: t - id_r/elapsed
                         id/start: id_r/start + id/dur
