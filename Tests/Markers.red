@@ -34,12 +34,11 @@ anim-block: compose [
     pen papaya fill-pen yello
     line line 300x30 300x450
     line line 550x30 550x450
-    translate from 0x0 to 800x0 on-time [elapsed/3: form round/to time 0.01]
+    translate from 0x0 to 800x0 on-time [timer/3: form round/to time 0.01]
 	[
         line 200x45 200x450
-        elapsed: text 200x25 "0.00"
+        timer: text 200x25 "0.00"
     ]
-    
     ref: start 2.0 duration 5.0
         translate from 0x0 to 250x0 [box 300x100 320x120]
     start 1.0 before ref starts duration 5.0                  
@@ -58,6 +57,6 @@ anim-block: compose [
 
 view [
     title "Animate - markers"
-    canvas: base 900x450 black rate 120
+    canvas: base 900x450 black rate 67
     draw animate anim-block
 ]
