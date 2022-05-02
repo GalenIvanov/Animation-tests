@@ -341,11 +341,9 @@ context [
         unless error? try [id: timeline/(to-set-word id)/2][
             bi?: id/bi-dir
             id/paused: not id/paused
-            elapsed: id/elapsed
             if bi? [
                 id_r: timeline/(to-set-word rejoin [id-txt "_r"])/2
                 id_r/paused: not id_r/paused
-                elapsed: id_r/elapsed
             ]
             
             unless  id/paused [
