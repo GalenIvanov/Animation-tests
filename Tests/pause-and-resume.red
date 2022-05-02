@@ -26,8 +26,10 @@ anim: compose/deep [
     translate white-box: from 30x95 to 550x95 speed 1.0 [box 0x0 20x20]
 ]
 
-change-caption: function [caption state][
-    rejoin [pick ["Pause " "Resume "] state: not state caption]
+states: ["black" on "white" on]
+
+change-caption: func [type][
+    rejoin [pick ["Pause " "Resume "] states/:type: not states/:type type]
 ]
 
 print "Pausing and resuming animations"
@@ -39,10 +41,10 @@ view [
     across
     button "Pause black" data on [
         toggle-animation 'black-box
-        face/text: change-caption "black" face/data
+        face/text: change-caption "black"
     ] 
     button "Pause white" data on [
         toggle-animation 'white-box
-        face/text: change-caption "white" face/data
+        face/text: change-caption "white"
     ]
 ]
