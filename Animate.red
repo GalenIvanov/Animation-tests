@@ -25,8 +25,9 @@ context [
     stroke-path-map: make map! 10
     morph-path-map: make map! 10
     two-way-map: make map! 10   ; keeps a track of the way each two-way loop is running
+    named-animations: make map! 20 ; 
     dummy: 0
-    
+   
     effect: make object! [
         val1:       0.0          ; starting value to change
         val2:       1.0          ; end value
@@ -239,7 +240,7 @@ context [
         foreach [key effect] particles-map [
             proto: effect/proto
             dt: proto/t-speed * dt
-            if t >= proto/start [
+            if all [t >= proto/start not proto/paused][
                 either t <= (proto/start + proto/duration) [
                     particle/update-particles to-word key dt  
                 ][
@@ -338,7 +339,22 @@ context [
     ][
         t: to float! difference now/precise st-time
         id-txt: id
-        unless error? try [id: timeline/(to-set-word id)/2][
+        
+        ;if error? try [repo: probe get to-word named-animations/:id][
+        if error? try [ 
+            type: named-animations/:id 
+            ;if word? repo [repo: get repo]
+        ][
+            print [id "not found in the list of named animations"]
+        ]
+        
+        id: switch type [
+            simple    [timeline/(to-set-word id)/2]
+            particles [particles-map/:id/proto]
+            
+        ]
+        
+        ;unless error? try [id: repo/(to-set-word id)/2][
             bi?: id/bi-dir
             id/paused: not id/paused
             if bi? [
@@ -358,7 +374,7 @@ context [
                     ]
                 ]
             ]
-        ]
+        ;]
     ]
     
     
@@ -790,12 +806,15 @@ context [
             number:   100                  ; how many particles
             start:    1.0                  ; start time of the effect
             duration: 5.0                  ; duration of the effect
+            elapsed:  0.0
             shapes:   speck                ; a block of draw blocks (shapes to be used to render particles)
             ffd:      0
             forces:   []                   ; what forces affect the particles motion - a block of words
             started:  false
             finished: false
             expires:  0                   ; when to clear the particle draw block
+            paused:   false
+            bi-dir:   false
             on-start: []
             on-time:  []
             on-exit:  []
@@ -830,7 +849,7 @@ context [
         
         init-particles: func [
             {Populates a named set of particles using a prototype}
-            id    [word!]       ; particles set identifier
+            id    [word!]       ; particles identifier
             proto [object!]     ; particle-base object
             idx   [integer!]    ; unique identifier
             /local
@@ -846,7 +865,7 @@ context [
                 'draw copy []
             ]
             particles-draw: make block! 3 * n: proto/number 
-            append particles-draw compose [(to-set-word rejoin [id "-" idx]) translate 0x0]
+            append particles-draw compose [(to-set-word id ) translate 0x0]
             
             loop n [
                 p: create-particle proto
@@ -858,7 +877,8 @@ context [
                 ]
                 append particles/draw d
             ]
-            put particles-map (id-p: to-word rejoin [id "-" idx]) particles
+            put particles-map (id-p: to-word id) particles
+            put named-animations id-p 'particles
             append/only particles-draw particles/draw
             loop 100 [update-particles id-p proto/ffd / 100.0] ; update the particle positions 
             particles-draw
@@ -1150,7 +1170,11 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             'from (from-lbl: none) p1: [[set v1 keep-word-val ] | value keep (scaled) (v1: scaled)]
             'to p2: from-value (
                 clear-anim-actors time-scale: 1.0
-                if set-word? p/1 [probe from-lbl: p/1]  ; labeled animation
+                if set-word? p/1 [     ; labeled animation
+                    ;probe from-lbl: p/1
+                    from-lbl: p/1
+                    put named-animations from-lbl 'simple
+                ]
             )
             opt anim-speed
             opt anim-actors
@@ -1243,13 +1267,15 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         set p-id word!
         set p-proto [word! | block!]
         (
-           prt: either word? p-proto [get p-proto][p-proto]
-           append prt compose [start: (start-v)]
-           append prt compose [duration: (dur-v)]
-           append prt [t-speed: 1.0]
+            prt: either word? p-proto [get p-proto][p-proto]
+            append prt compose [
+                start: (start-v)
+                duration: (dur-v)
+                t-speed: 1.0
+            ]
         )
         any [
-            anim-speed (prt/t-speed: time-scale prt/duration: prt/duration / time-scale)
+            anim-speed (prt/t-speed: time-scale probe prt/duration: prt/duration / time-scale)
           | [
                 'expires [
                     ['after set particles-end number!] 
@@ -1258,17 +1284,18 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                 (if particles-end > 0 [append prt compose [expires: (max start-v + dur-v start-v + particles-end)]])
             ]
           | anim-actors
-            (
-               v1: v2: 0
-               make-effect  ; for a dummy tween that will manage actors
-               cur-target: 'dummy
-               cur-effect: make effect ani-bl
-               put timeline p-id reduce [cur-target cur-effect]
-               start-v: start-v + delay-v
-               from-count: from-count + 1
-            )
-        ]    
-        keep (particle/init-particles p-id make particle/particle-base prt cur-idx)
+        ]
+        keep (particle/init-particles p-id make particle/particle-base prt cur-idx) (
+            v1: v2: 0
+            make-effect  ; for a dummy tween that will manage actors
+            cur-target: 'dummy
+            cur-effect: make effect ani-bl
+            put timeline p-id reduce [cur-target cur-effect]
+            print ["Start-v at" p-id "is" start-v]
+            start-v: start-v + delay-v
+            from-count: from-count + 1
+        )
+        
     ]
     
     curve-fx: [
@@ -2222,6 +2249,9 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ;probe draw-block
         ;probe timeline
         ;probe two-way-map
+        ;probe named-animations
+
+        ;write-clipboard mold particles-map
         
         test-img: make image! [100x100 0.0.0.0]
         if error? draw-err: try [draw test-img copy draw-block][
