@@ -6,7 +6,7 @@ Red [
 
 #include %../Animate.red
 
-t-sc: 2.0  ; time-scale
+t-sc: 1.0  ; time-scale
 
 ball: [
     [
@@ -112,7 +112,7 @@ d: compose [
     
     start 0.0 duration 5.0 delay 2.0
     
-    particles test motes expires after 6 speed 0.5 on-start [print "Motes"] on-exit [print "Motes finished"]
+    particles test motes expires after 6 speed 1.0 on-start [print "Motes"] on-exit [print "Motes finished"]
     line-width 8 pen white fill-pen transparent
     box 50x50 150x350
     
@@ -121,13 +121,16 @@ d: compose [
     fill-pen transparent pen papaya circle 300x200 125
     
     font fnt
-    particles fleet rocket on-start [print "Rockets"] on-exit [print "Rockets finished"] expires after 6 speed 1.5
+    particles fleet rocket on-start [print "Rockets"] on-exit [print "Rockets finished"] expires after 6 speed 2.0
     pen sky box 460x50 570x350
 ]
 
 print "Particles demo"
 
 view [
+    below
     canvas: base 600x400 rate 67
     draw animate d
+	across
+	button "Pause" [toggle-animation 'test]
 ]
