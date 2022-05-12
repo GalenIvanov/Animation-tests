@@ -39,11 +39,11 @@ view [
     below
     base 600x140 beige rate 67 draw animate anim
     across
-    button "Pause black" data on [
+    button "Pause black" [
         toggle-animation 'black-box
         face/text: change-caption "black"
     ] 
-    button "Pause white" data on [
+    button "Pause white" [
         toggle-animation 'white-box
         face/text: change-caption "white"
     ]
