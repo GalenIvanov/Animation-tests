@@ -6,7 +6,7 @@ Red [
 
 #include %../Animate.red
 
-t-sc: 1.0  ; time-scale
+t-sc: 1.  ; time-scale
 
 ball: [
     [
@@ -105,6 +105,12 @@ rocket: [
 
 fnt: make font! [size: 15]
 
+states: ["left" on "center" on "right" on]
+
+change-caption: func [type][
+    rejoin [pick ["Pause " "Resume "] states/:type: not states/:type type]
+]
+
 d: compose [
     fill-pen black
     pen transparent
@@ -131,6 +137,17 @@ view [
     below
     canvas: base 600x400 rate 67
     draw animate d
-	across
-	button "Pause" [toggle-animation 'test]
+    across pad 70x0 space 125x0
+    button "Pause left" [
+        toggle-animation 'test
+        face/text: change-caption "left"
+    ]
+    button "Pause center" [
+        toggle-animation 'vulcano
+        face/text: change-caption "center"
+    ]
+    button "Pause right" [
+        toggle-animation 'fleet
+        face/text: change-caption "right"
+    ]
 ]
