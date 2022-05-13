@@ -197,15 +197,17 @@ context [
         foreach [key val] timeline [
             w: val/2
             unless w/paused [
-                t: t * w/speed
                 if t > w/start[
+				    t: t * w/speed             ; Wrong !!!
                     w/elapsed: w/elapsed + dt
                     unless w/started [
+                        print [mold key "at time" t]
                         do w/on-start
                         w/started: true
                     ]
-                    either t < (w/start + w/dur) [
-                        tt: t - w/start / w/dur
+					dur: w/dur
+                    either t < (w/start + dur) [
+                        tt: t - w/start / dur
                         if w/val1 <> w/val2 [set val/1 tween w/val1 w/val2 tt :w/ease]
                         bind w/on-time context compose [time: (t)]  ; makes elapsed time visible to the caller as "time"
                         do w/on-time
@@ -216,7 +218,7 @@ context [
                         ]
                         if w/bi-dir [two-way-map/:id: w/dir]
                     ][
-                        d: w/dur
+                        d: dur / w/speed
                         w/elapsed: 0.0
                         if w/bi-dir [d: d * 2]        ; two-way loop - reset after 2 x duration
                         either w/loop-count = -1 [    ; loop forever
@@ -226,6 +228,7 @@ context [
                                 w/loop-count: w/loop-count - 1
                                 w/start: w/start + d
                             ][
+                                print [mold key "at time" t]
                                 do w/on-exit
                                 remove/key timeline key
                             ]    
@@ -1171,7 +1174,6 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             'to p2: from-value (
                 clear-anim-actors time-scale: 1.0
                 if set-word? p/1 [     ; labeled animation
-                    ;probe from-lbl: p/1
                     from-lbl: p/1
                     put named-animations from-lbl 'simple
                 ]
@@ -1288,10 +1290,10 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         keep (particle/init-particles p-id make particle/particle-base prt cur-idx) (
             v1: v2: 0
             make-effect  ; for a dummy tween that will manage actors
+            ani-bl/dur: ani-bl/dur / time-scale
             cur-target: 'dummy
             cur-effect: make effect ani-bl
             put timeline p-id reduce [cur-target cur-effect]
-            print ["Start-v at" p-id "is" start-v]
             start-v: start-v + delay-v
             from-count: from-count + 1
         )
@@ -2247,7 +2249,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ]
 
         ;probe draw-block
-        ;probe timeline
+        probe timeline
         ;probe two-way-map
         ;probe named-animations
 
