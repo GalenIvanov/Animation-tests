@@ -198,29 +198,36 @@ context [
             w: val/2
             unless w/paused [
                 if t > w/start[
-				    t: t * w/speed             ; Wrong !!!
                     w/elapsed: w/elapsed + dt
                     unless w/started [
-                        print [mold key "at time" t]
                         do w/on-start
                         w/started: true
                     ]
-					dur: w/dur
+                    dur: w/dur / w/speed
                     either t < (w/start + dur) [
-                        tt: t - w/start / dur
+                        tt: t - w/start * w/speed / (dur * w/speed)
                         if w/val1 <> w/val2 [set val/1 tween w/val1 w/val2 tt :w/ease]
                         bind w/on-time context compose [time: (t)]  ; makes elapsed time visible to the caller as "time"
                         do w/on-time
                         id: key
                         if w/dir = 'back [
-                           parse to-string id [copy t-id to ["_r" end]]
-                           id: to-word t-id
+                           parse to-string id [copy id to ["_r" end]]
                         ]
                         if w/bi-dir [two-way-map/:id: w/dir]
                     ][
-                        d: dur / w/speed
+                        d: dur
                         w/elapsed: 0.0
-                        if w/bi-dir [d: d * 2]        ; two-way loop - reset after 2 x duration
+                        if w/bi-dir [            ; two-way loop - reset after 2 x duration
+                            d: d * 2
+                            ; Change the opposite direction's start
+                            opposite: form key
+                            either w/dir = 'back [
+                                take/part/last opposite find/last opposite "_"
+                            ][
+                                opposite: rejoin [form key "_r"]
+                            ]
+                            timeline/:opposite/2/start: t
+                        ]
                         either w/loop-count = -1 [    ; loop forever
                             w/start: w/start + d
                         ][ 
@@ -228,7 +235,6 @@ context [
                                 w/loop-count: w/loop-count - 1
                                 w/start: w/start + d
                             ][
-                                print [mold key "at time" t]
                                 do w/on-exit
                                 remove/key timeline key
                             ]    
@@ -337,49 +343,43 @@ context [
         ani-start/2: 0.1  ; refresh the draw block in case only font or image parameters have been changed
     ]
     
-    set 'toggle-animation function [
-        id
-    ][
+    set 'toggle-animation function [id][
         t: to float! difference now/precise st-time
+        id: form id
         id-txt: id
         
-        ;if error? try [repo: probe get to-word named-animations/:id][
-        if error? try [ 
-            type: named-animations/:id 
-            ;if word? repo [repo: get repo]
-        ][
+        if none? type: named-animations/:id [
             print [id "not found in the list of named animations"]
         ]
         
+	
         id: switch type [
-            simple    [timeline/(to-set-word id)/2]
-            particles [particles-map/:id/proto]
-            
+            simple    [timeline/(id)/2]
+            particles [probe particles-map/:id/proto]
+            ;particles [particles-map/(to-word id)/proto]
+        ]
+
+        bi?: id/bi-dir
+        id/paused: not id/paused
+
+        if bi? [
+            id_r: timeline/(rejoin [id-txt "_r"])/2
+            id_r/paused: not id_r/paused
         ]
         
-        ;unless error? try [id: repo/(to-set-word id)/2][
-            bi?: id/bi-dir
-            id/paused: not id/paused
+        unless id/paused [
+            id/start: t - id/elapsed
+            ; calculate the new starts of the forth and back animations
             if bi? [
-                id_r: timeline/(to-set-word rejoin [id-txt "_r"])/2
-                id_r/paused: not id_r/paused
-            ]
-            
-            unless  id/paused [
-                id/start: t - id/elapsed
-                ; calculate the starts of the forth and back animations
-                if bi? [
-                    either two-way-map/:id-txt = 'forth [
-                        id_r/start: id/start + id/dur
-                    ][
-                        id_r/start: t - id_r/elapsed
-                        id/start: id_r/start + id/dur
-                    ]
+                either two-way-map/:id-txt = 'forth [
+                    id_r/start: id/start + id/dur
+                ][
+                    id_r/start: t - id_r/elapsed
+                    id/start: id_r/start + id/dur
                 ]
             ]
-        ;]
+        ]
     ]
-    
     
     ;------------------------------------------------------------------------------------------------
     pascals-triangle: function [
@@ -881,7 +881,7 @@ context [
                 append particles/draw d
             ]
             put particles-map (id-p: to-word id) particles
-            put named-animations id-p 'particles
+            put named-animations form id-p 'particles
             append/only particles-draw particles/draw
             loop 100 [update-particles id-p proto/ffd / 100.0] ; update the particle positions 
             particles-draw
@@ -1174,7 +1174,8 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             'to p2: from-value (
                 clear-anim-actors time-scale: 1.0
                 if set-word? p/1 [     ; labeled animation
-                    from-lbl: p/1
+                    ;from-lbl: p/1
+                    from-lbl: form p/1
                     put named-animations from-lbl 'simple
                 ]
             )
@@ -1205,7 +1206,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                 ani-bl/dir: to-lit-word "back"
                 cur-effect: make effect ani-bl 
                 cur-effect/on-start: copy []  ; on-start wiil be trigegered only for the forward tween 
-                put timeline to-word rejoin [timeline-entry "_r"] reduce [trgt cur-effect] ; backward
+                put timeline rejoin [timeline-entry "_r"] reduce [trgt cur-effect] ; backward
                 probe timeline
             ][
                 ;put timeline to-string trgt reduce [trgt cur-effect]
@@ -2251,7 +2252,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ;probe draw-block
         probe timeline
         ;probe two-way-map
-        ;probe named-animations
+        probe named-animations
 
         ;write-clipboard mold particles-map
         
