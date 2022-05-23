@@ -347,20 +347,29 @@ context [
         t: to float! difference now/precise st-time
         id: form id
         id-txt: id
+        id-dummy: none
         
         if none? type: named-animations/:id [
             print [id "not found in the list of named animations"]
         ]
-        
-	
+    
         id: switch type [
             simple    [timeline/(id)/2]
-            particles [probe particles-map/:id/proto]
-            ;particles [particles-map/(to-word id)/proto]
+            particles [
+                id-dummy: timeline/(to-word id)/2
+                particles-map/(to-word id)/proto
+            ]
         ]
 
         bi?: id/bi-dir
         id/paused: not id/paused
+        
+        if id-dummy [
+            id-dummy/paused: not id-dummy/paused
+            unless id-dummy/paused [
+                id-dummy/start: t - id-dummy/elapsed
+            ]
+        ]
 
         if bi? [
             id_r: timeline/(rejoin [id-txt "_r"])/2
@@ -379,6 +388,8 @@ context [
                 ]
             ]
         ]
+        
+        
     ]
     
     ;------------------------------------------------------------------------------------------------
@@ -858,7 +869,7 @@ context [
             /local
                 particles 
                 particles-draw
-                d n p id-p
+                d n p
         ][
             particles: make block! 2 * n: proto/number
             proto: make a-particle proto
@@ -880,20 +891,20 @@ context [
                 ]
                 append particles/draw d
             ]
-            put particles-map (id-p: to-word id) particles
-            put named-animations form id-p 'particles
+            put particles-map id particles
+            put named-animations form id 'particles
             append/only particles-draw particles/draw
-            loop 100 [update-particles id-p proto/ffd / 100.0] ; update the particle positions 
+            loop 100 [update-particles id proto/ffd / 100.0] ; update the particle positions 
             particles-draw
         ]
         
         prev-t: now/precise
         
         update-particles: func [
-            id [word!]
+            id 
             dt [float!]
             /local
-               respawn i p ps pd p-id tmp new-p 
+               i p ps pd p-id tmp new-p 
         ][
             p-id: particles-map/:id
             ps: p-id/spec
@@ -1291,7 +1302,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         keep (particle/init-particles p-id make particle/particle-base prt cur-idx) (
             v1: v2: 0
             make-effect  ; for a dummy tween that will manage actors
-            ani-bl/dur: ani-bl/dur / time-scale
+            ;ani-bl/dur: ani-bl/dur / time-scale
             cur-target: 'dummy
             cur-effect: make effect ani-bl
             put timeline p-id reduce [cur-target cur-effect]
@@ -2252,9 +2263,11 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ;probe draw-block
         probe timeline
         ;probe two-way-map
-        probe named-animations
+        ;probe named-animations
 
-        ;write-clipboard mold particles-map
+        foreach [k v] particles-map [
+            print [mold k v/proto]
+        ]
         
         test-img: make image! [100x100 0.0.0.0]
         if error? draw-err: try [draw test-img copy draw-block][
