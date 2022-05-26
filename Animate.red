@@ -203,9 +203,8 @@ context [
                         do w/on-start
                         w/started: true
                     ]
-                    dur: w/dur / w/speed
-                    either t < (w/start + dur) [
-                        tt: t - w/start * w/speed / (dur * w/speed)
+                    either t < (w/start + w/dur) [
+                        tt: t - w/start / w/dur
                         if w/val1 <> w/val2 [set val/1 tween w/val1 w/val2 tt :w/ease]
                         bind w/on-time context compose [time: (t)]  ; makes elapsed time visible to the caller as "time"
                         do w/on-time
@@ -215,9 +214,9 @@ context [
                         ]
                         if w/bi-dir [two-way-map/:id: w/dir]
                     ][
-                        d: dur
+                        d: w/dur
                         w/elapsed: 0.0
-                        if w/bi-dir [            ; two-way loop - reset after 2 x duration
+                        if w/bi-dir [      ; two-way loop - reset after 2 x duration
                             d: d * 2
                             ; Change the opposite direction's start
                             opposite: form key
@@ -1197,15 +1196,12 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             ani-bl/loop-count: loop-n
             cur-effect: make effect ani-bl
             trgt: to-path reduce [to-word cur-target val-ofs]
-            timeline-entry: any [
-                from-lbl
-                to-string trgt
-            ]
+            timeline-entry: any [from-lbl to-string trgt]
             cur-effect/start: start-v
             either bi-dir [
                 put two-way-map timeline-entry 'forth
                 ani-bl/start: start-v
-                ani-bl/dur: ani-bl/dur / 2.0
+                ani-bl/dur: ani-bl/dur / 2.0 / ani-bl/speed
                 ani-bl/bi-dir: on
                 probe cur-effect: make effect ani-bl
                 cur-effect/on-exit: copy []  ; on-exit will trigger only at the backward tween
@@ -1220,7 +1216,6 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                 put timeline rejoin [timeline-entry "_r"] reduce [trgt cur-effect] ; backward
                 probe timeline
             ][
-                ;put timeline to-string trgt reduce [trgt cur-effect]
                 put timeline timeline-entry reduce [trgt cur-effect]
             ]    
             start-v: start-v + delay-v
