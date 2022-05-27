@@ -1297,7 +1297,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         keep (particle/init-particles p-id make particle/particle-base prt cur-idx) (
             v1: v2: 0
             make-effect  ; for a dummy tween that will manage actors
-            ;ani-bl/dur: ani-bl/dur / time-scale
+            ani-bl/dur: ani-bl/dur / time-scale
             cur-target: 'dummy
             cur-effect: make effect ani-bl
             put timeline p-id reduce [cur-target cur-effect]
@@ -2260,9 +2260,6 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ;probe two-way-map
         ;probe named-animations
 
-        foreach [k v] particles-map [
-            print [mold k v/proto]
-        ]
         
         test-img: make image! [100x100 0.0.0.0]
         if error? draw-err: try [draw test-img copy draw-block][
