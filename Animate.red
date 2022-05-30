@@ -263,9 +263,8 @@ context [
         
         foreach [key v] curve-fx-map [
             target: 0.0
-            t: v/speed * t
             if t >= v/start [
-                either t <= (v/start + v/dur * 1.01) [
+                either all [t <= (v/start + v/dur * 1.01) not v/paused]  [
                     if lit-word? :v/ease [v/ease: in easings :v/ease]
                     tt: t - v/start / v/dur
                     target: tween v/v1 v/v2 tt get v/ease
@@ -274,9 +273,10 @@ context [
                         block [block-along-curve v/id target]
                     ][print "Unsupported effect type - must be text or block"]
                 ][
-                    if all [v/expires <> 0 t > v/expires] [
+                    if all [v/expires <> 0 t > v/expires not v/paused] [
                        remove/key curve-fx-map key
                        clear first get v/id  ; clear the effect's draw block
+					   if named-animations/key [remove/key named-animations key print [key "removed"]]
                     ]   
                 ]               
             ]
@@ -348,46 +348,51 @@ context [
         id-txt: id
         id-dummy: none
         
-        if none? type: named-animations/:id [
+        either none? type: named-animations/:id [
             print [id "not found in the list of named animations"]
-        ]
+        ][
     
-        id: switch type [
-            simple    [timeline/(id)/2]
-            particles [
-                id-dummy: timeline/(to-word id)/2
-                particles-map/(to-word id)/proto
+            id: switch type [
+                simple    [timeline/(id)/2]
+                particles [
+                    id-dummy: timeline/(to-word id)/2
+                    particles-map/(to-word id)/proto
+                ]
+    			curve-fx  [
+    			    id-dummy: timeline/(to-word id)/2
+                    curve-fx-map/:id
+    			]
             ]
-        ]
-
-        bi?: id/bi-dir
-        id/paused: not id/paused
-        
-        if id-dummy [
-            id-dummy/paused: not id-dummy/paused
-            unless id-dummy/paused [
-                id-dummy/start: t - id-dummy/elapsed
-                id/elapsed: id-dummy/elapsed
-            ]
-        ]
-
-        if bi? [
-            id_r: timeline/(rejoin [id-txt "_r"])/2
-            id_r/paused: not id_r/paused
-        ]
-        
-        unless id/paused [
-            id/start: t - id/elapsed
-            ; calculate the new starts of the forth and back animations
-            if bi? [
-                either two-way-map/:id-txt = 'forth [
-                    id_r/start: id/start + id/dur
-                ][
-                    id_r/start: t - id_r/elapsed
-                    id/start: id_r/start + id/dur
+    
+            bi?: id/bi-dir
+            id/paused: not id/paused
+            
+            if id-dummy [
+                id-dummy/paused: not id-dummy/paused
+                unless id-dummy/paused [
+                    id-dummy/start: t - id-dummy/elapsed
+                    id/elapsed: id-dummy/elapsed
                 ]
             ]
-        ]
+    
+            if bi? [
+                id_r: timeline/(rejoin [id-txt "_r"])/2
+                id_r/paused: not id_r/paused
+            ]
+            
+            unless id/paused [
+                id/start: t - id/elapsed
+                ; calculate the new starts of the forth and back animations
+                if bi? [
+                    either two-way-map/:id-txt = 'forth [
+                        id_r/start: id/start + id/dur
+                    ][
+                        id_r/start: t - id_r/elapsed
+                        id/start: id_r/start + id/dur
+                    ]
+                ]
+            ]
+		]
         
         
     ]
@@ -1340,7 +1345,9 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             ]
         ]    
         (
+		    dur-v: dur-v / time-scale
             v2: any [v2 v1]
+			curve-fx-end: curve-fx-end / time-scale
             if curve-fx-end > 0 [curve-fx-end: max start-v + curve-fx-end start-v + dur-v]
             if word? s-crv-data: select args: get crv-data 'data [s-crv-data: get s-crv-data]
             ; check if we are to move text or draw block along curve
@@ -1351,7 +1358,8 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                 draw-data: block-along-curve/init crv-id v1 s-crv-data get args/curve args/space-x
                 fx-type: 'block
             ]
-            put curve-fx-map crv-lbl: to-word rejoin [crv-id "-" cur-idx] compose/deep [
+            ;put curve-fx-map crv-lbl: to-word rejoin [crv-id "-" cur-idx] compose/deep [
+            put curve-fx-map crv-lbl: form crv-id compose/deep [
                 id: (crv-id)
                 start: (start-v)
                 dur: (dur-v)
@@ -1361,9 +1369,13 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                 expires: (curve-fx-end)
                 type: (fx-type)
                 speed: (time-scale)
+				elapsed: 0.0
+				paused: (false)
+				bi-dir: (false)
             ]
            
-            cur-idx: cur-idx + 1            
+		    put named-animations form crv-id 'curve-fx
+            ;cur-idx: cur-idx + 1            
             start-v: start-v + delay-v
             from-count: from-count + 1
         )
@@ -2257,10 +2269,10 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ]
 
         ;probe draw-block
-        probe timeline
+        ;probe timeline
         ;probe two-way-map
-        ;probe named-animations
-
+        probe named-animations
+        probe curve-fx-map
         
         test-img: make image! [100x100 0.0.0.0]
         if error? draw-err: try [draw test-img copy draw-block][
