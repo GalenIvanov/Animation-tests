@@ -367,6 +367,7 @@ context [
             id-dummy/paused: not id-dummy/paused
             unless id-dummy/paused [
                 id-dummy/start: t - id-dummy/elapsed
+                id/elapsed: id-dummy/elapsed
             ]
         ]
 
