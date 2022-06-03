@@ -236,6 +236,7 @@ context [
                             ][
                                 do w/on-exit
                                 remove/key timeline key
+                                if named-animations/:key [remove/key named-animations key]
                             ]    
                         ]                    
                     ]
@@ -254,6 +255,7 @@ context [
                 ][
                     if all [proto/expires <> 0 t > proto/expires] [
                         clear at get key 3
+                        if named-animations/(form key) [remove/key named-animations form key print [key "removed"]]
                         remove/key particles-map key
                     ]
                 ]
@@ -276,7 +278,7 @@ context [
                     if all [v/expires <> 0 t > v/expires not v/paused] [
                        remove/key curve-fx-map key
                        clear first get v/id  ; clear the effect's draw block
-					   if named-animations/key [remove/key named-animations key print [key "removed"]]
+                       if named-animations/:key [remove/key named-animations key]
                     ]   
                 ]               
             ]
@@ -293,18 +295,22 @@ context [
         
         foreach [key v] stroke-path-map [
             target: 0.0
-            t: v/speed * t
             if t >= v/start [
                 either t <= (v/start + v/duration) [
-                    if lit-word? :v/ease [v/ease: in easings :v/ease]
-                    tt: t - v/start / v/duration
-                    target: tween 0.0 1.0 tt get v/ease
-                    trace-path to-word key target
+                    if not v/paused [
+                        v/elapsed: v/elapsed + dt
+                        if lit-word? :v/ease [v/ease: in easings :v/ease]
+                        tt: t - v/start / v/duration
+                        target: tween 0.0 1.0 tt get v/ease
+                        trace-path to-word key target
+                    ]
                 ][
-                    trace-path to-word key 1.0 
-                    if all [v/expires > 0 t > v/expires] [
+                    unless v/paused [trace-path to-word key 1.0] ; stroke the entire path
+                    if all [v/expires > 0 t > v/expires not v/paused] [
                         remove/key stroke-path-map key
                         clear first get key
+                        remove/key named-animations form key
+
                     ]    
                 ]
             ]
@@ -358,12 +364,16 @@ context [
                     id-dummy: timeline/(to-word id)/2
                     particles-map/(to-word id)/proto
                 ]
-    			curve-fx  [
-    			    id-dummy: timeline/(to-word id)/2
+                curve-fx  [
+                    id-dummy: timeline/(to-word id)/2
                     curve-fx-map/:id
-    			]
+                ]
+                stroke-path [
+                    id-dummy: timeline/(to-word id)/2
+                    stroke-path-map/(to-set-word id)
+                ]
             ]
-    
+            
             bi?: id/bi-dir
             id/paused: not id/paused
             
@@ -392,9 +402,7 @@ context [
                     ]
                 ]
             ]
-		]
-        
-        
+        ]
     ]
     
     ;------------------------------------------------------------------------------------------------
@@ -1345,9 +1353,9 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             ]
         ]    
         (
-		    dur-v: dur-v / time-scale
+            dur-v: dur-v / time-scale
             v2: any [v2 v1]
-			curve-fx-end: curve-fx-end / time-scale
+            curve-fx-end: curve-fx-end / time-scale
             if curve-fx-end > 0 [curve-fx-end: max start-v + curve-fx-end start-v + dur-v]
             if word? s-crv-data: select args: get crv-data 'data [s-crv-data: get s-crv-data]
             ; check if we are to move text or draw block along curve
@@ -1369,12 +1377,12 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                 expires: (curve-fx-end)
                 type: (fx-type)
                 speed: (time-scale)
-				elapsed: 0.0
-				paused: (false)
-				bi-dir: (false)
+                elapsed: 0.0
+                paused: (false)
+                bi-dir: (false)
             ]
            
-		    put named-animations form crv-id 'curve-fx
+            put named-animations form crv-id 'curve-fx
             ;cur-idx: cur-idx + 1            
             start-v: start-v + delay-v
             from-count: from-count + 1
@@ -1667,7 +1675,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     
     break-path: function [
         {Breaks the path into segments that will be gradually colored}
-        id    [word!]        {unique identifier}
+        id    [string! word!]        {unique identifier}
         data  [block!]       {block of drawing primitives}
         w     [integer!]     {path width}
         color [tuple! word!] {path color}    
@@ -1686,13 +1694,15 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             length:    (to-integer len)
             cur-pos:   0
             start:     (start-v)
-            duration:  (dur-v)
+            duration:  (dur-v / time-scale)
             expires:   (stroke-path-end)
             color:     (color)
             count:     (seg-n)
             cur-count: 0
             ease:      (any [:ease-v (to lit-word! "ease-linear")])
             speed:     (time-scale)
+            paused:    (false)
+            elapsed:   0.0
         ]
         
         color: transparent
@@ -1796,7 +1806,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     
     trace-path: func [
         {Traverse the path's draw block and gradually change the pen color along the path}
-        id [word!]     {effect id}
+        id [string! word!]     {effect id}
         t   [number!]  {time}
     ][
         p: stroke-path-map/(id)
@@ -1832,7 +1842,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                 'expires [
                     [
                         'after set stroke-path-end number!
-                        (stroke-path-end: start-v + max stroke-path-end dur-v)
+                        (stroke-path-end: start-v + (max stroke-path-end dur-v) / time-scale)
                     ]
                   | 'never
                 ]
@@ -1842,14 +1852,15 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             v1: v2: 0
             make-effect  ; for a dummy tween that will manage actors
             cur-target: 'dummy
+            ani-bl/dur: ani-bl/dur / time-scale
             cur-effect: make effect ani-bl
             put timeline path-id reduce [cur-target cur-effect]
-            
-            path-id: to-word rejoin [path-id "-" cur-idx]
+            ;path-id: to-word rejoin [path-id "-" cur-idx]
+            path-id: to-word path-id
             new-block: break-path path-id path-block width color  ; how many segments? 200 
             start-v: start-v + delay-v
             from-count: from-count + 1
-            cur-idx: cur-idx + 1
+            put named-animations form path-id 'stroke-path
         )
 
         keep (to-set-word path-id)
@@ -2271,8 +2282,8 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         ;probe draw-block
         ;probe timeline
         ;probe two-way-map
-        probe named-animations
-        probe curve-fx-map
+        ;probe named-animations
+        ;probe stroke-path-map
         
         test-img: make image! [100x100 0.0.0.0]
         if error? draw-err: try [draw test-img copy draw-block][
