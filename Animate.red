@@ -318,7 +318,6 @@ context [
         ]
         
         foreach [key v] morph-path-map [
-            t: v/speed * t
             s: v/started
             if all [t > v/start not s][
                 clear p: get to-path reduce [to-word key 1]
@@ -328,17 +327,20 @@ context [
             
             if all [t >= v/start s] [
                 if lit-word? :v/ease [v/ease: in easings :v/ease]
-                tt: t - v/start / v/duration
                 either t <= (v/start + v/duration) [
-                    repeat n length? at v/block-1 2 [
-                        k: n + 1
-                        trgt: to-path reduce [to-word key 1 k]
-                        set trgt tween v/block-1/:k v/block-2/:k tt get v/ease
-                    ]
+                    if not v/paused [
+                        tt: t - v/start / v/duration
+                        repeat n length? at v/block-1 2 [
+                            k: n + 1
+                            trgt: to-path reduce [to-word key 1 k]
+                            set trgt tween v/block-1/:k v/block-2/:k tt get v/ease
+                        ]
+                    ]    
                 ][
-                    if all [v/expires > 0 t > v/expires] [
+                    if all [v/expires > 0 t > v/expires not v/paused] [
                         clear p
                         remove/key morph-path-map key
+                        remove/key named-animations form key
                     ]    
                 ]
             ]
@@ -361,7 +363,7 @@ context [
             id: switch type [
                 simple    [timeline/(id)/2]
                 particles [
-                    id-dummy: timeline/(to-word id)/2
+                    id-dummy: timeline/(to-word id)/2  ; the same for all the effects except simple
                     particles-map/(to-word id)/proto
                 ]
                 curve-fx  [
@@ -371,6 +373,10 @@ context [
                 stroke-path [
                     id-dummy: timeline/(to-word id)/2
                     stroke-path-map/(to-set-word id)
+                ]
+                morph-path [
+                    id-dummy: timeline/(to-word id)/2
+                    morph-path-map/(to-set-word id)
                 ]
             ]
             
@@ -2017,15 +2023,17 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         
         put morph-path-map target compose/deep [
             start: (start-v)
-            duration: (dur-v)
+            duration: (dur-v / time-scale)
             expires: (morph-path-end)
             block-1: [(lines-1)]
             block-2: [(lines-2)]
-            ;end-block: [(p2)]
-            end-block: [(lines-2)]
+                        end-block: [(lines-2)]
             ease: (ease-v)
             started: (false)
             speed: (time-scale)
+            elapsed: 0.0
+            paused: (false)
+            bi-dir: (false)
         ]
     ]
     
@@ -2037,6 +2045,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             show-first: false
             clear-anim-actors
         )
+        set path-id word!
         path (path1: copy path-block clear path-block)
         'into
         path (path2: copy path-block)
@@ -2055,12 +2064,15 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         (
             v1: v2: 0
             make-effect  ; for a dummy tween that will manage actors
-            target: to-word rejoin ["morph-" cur-idx]
-            cur-idx: cur-idx + 1
+            ani-bl/dur: ani-bl/dur / time-scale
+            ;target: to-word rejoin ["morph-" cur-idx]
+            target: path-id
+            ;cur-idx: cur-idx + 1
             cur-target: 'dummy
             cur-effect: make effect ani-bl
             put timeline target reduce [cur-target cur-effect]
             linearize-paths target path1 path2
+            put named-animations form path-id 'morph-path
         )
         keep (to-set-word target)
         keep (either show-first [path1][copy []])
