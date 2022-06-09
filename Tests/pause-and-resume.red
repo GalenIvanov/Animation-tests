@@ -17,13 +17,13 @@ anim: compose/deep [
     text 30x25 "No loop"
     line 30x55 565x55
     start 1 duration 10 ; ease 'ease-in-out-cubic
-    translate black-box: from 30x45 to 550x45 speed 1.0[box 0x0 20x20]
+    translate black-box: from 30x45 to 550x45 speed 2.5 [box 0x0 20x20]
     
     text 30x75 "Loop two-way forever"
     line 30x105 565x105
     fill-pen white
-    start 0 duration 4 loop two-way forever
-    translate white-box: from 30x95 to 550x95 speed 1.0 [box 0x0 20x20]
+    start 0 duration 4.0 loop two-way forever
+    translate white-box: from 30x95 to 550x95 speed 2.5 [box 0x0 20x20]
 ]
 
 states: ["black" on "white" on]
