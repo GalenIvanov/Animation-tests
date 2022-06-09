@@ -31,7 +31,7 @@ anim: compose/deep [
     text 20x100 "Speed 2.0" line 150x115 570x115
     translate from 150x105 to 550x105 speed 200% [box 0x0 20x20]
     
-    start 0 duration 4
+    start 0 duration 3
     text 20x140 "Speed 2.0" line 150x155 570x155
     text 20x160 "no loop"
     translate from 150x145 to 550x145 speed 200% [box 0x0 20x20]
