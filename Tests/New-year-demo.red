@@ -69,18 +69,18 @@ scene: compose/deep [
     start 2.0 duration 5.0 ease 'ease-in-out-cubic
     translate 0x80 [
         font fnt2
-        curve-fx greeting-b happy-new-year from 1.0 to 0.0 expires after 18
+        curve-fx greeting-b-l happy-new-year from 1.0 to 0.0 expires after 8
         translate -3x-3 
         font fnt1
-        curve-fx greeting happy-new-year from 1.0 to 0.0  expires after 18
+        curve-fx greeting-l happy-new-year from 1.0 to 0.0  expires after 8
     ]    
     start 10.0 duration 5.0 ease 'ease-in-out-cubic
     translate 0x80 [
         font fnt2
-        curve-fx greeting-b happy-new-year from 0.0 to 1.0 expires after 18
+        curve-fx greeting-b-r happy-new-year from 0.0 to 1.0 expires after 18
         translate -3x-3 
         font fnt1
-        curve-fx greeting happy-new-year from 0.0 to 1.0 expires after 18
+        curve-fx greeting-r happy-new-year from 0.0 to 1.0 expires after 18
     ]
     
     start 18.0 duration 2.0 ease 'ease-in-out-cubic
