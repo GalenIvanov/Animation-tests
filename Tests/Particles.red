@@ -6,7 +6,7 @@ Red [
 
 #include %../Animate.red
 
-t-sc: 1.0  ; time-scale
+t-sc: 0.5  ; time-scale
 
 ball: [
     [
