@@ -379,8 +379,9 @@ Path contents are limited to just three types of primitives: lines, circular arc
 
 `morph-path` takes a path and morphs it into another path. The paths are the same as in `stroke-path`.
 
-    morph-path <path> into <path> <visible> <expires> <actors>
+    morph-path <id> <path> into <path> <visible> <expires> <actors>
     
+    <id>       : an identifier – used to pause and resume the effect (word!)
     <path>     : a block of lines, arcs and custom Bézier curves (block!)
     <visible>  : (optional) Is the first block displayed at the start? <visible <logic!>> 
     <expires>  : (optional) when to clear the effects draw block (same as particles)
@@ -404,7 +405,7 @@ Path contents are limited to just three types of primitives: lines, circular arc
         line-width 3
         line-cap round
         start 2 duration 2 ease :ease-in-out-quint
-        morph-path (path1) into (path2) visible true expires after 2
+        morph-path morph (path1) into (path2) visible true expires after 2
     ]
 
 
