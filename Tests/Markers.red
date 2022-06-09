@@ -4,7 +4,7 @@ Red [
     needs: view
 ]
 
-#include %../Animate.red
+#include %../animate.red
 
 fnt1: make font! [name: "Verdana" size: 11 color: 255.255.255.0]
 
@@ -39,6 +39,7 @@ anim-block: compose [
         line 200x45 200x450
         timer: text 200x25 "0.00"
     ]
+    
     ref: start 2.0 duration 5.0
         translate from 0x0 to 250x0 [box 300x100 320x120]
     start 1.0 before ref starts duration 5.0                  
