@@ -101,7 +101,7 @@ Before we start to animate the parameters of Draw commands, we need to indicate 
     - starts
     - ends
     
-    anim-loop>  : <two-way> <count>
+    anim-loop  : loop <two-way> <count>
     <two-way>   : (optional) 'two-way (the animation repeats backwards)
     <count>     : (optional) 'forever | <n> 'times
     <n>         : how many times does the animatin repeat (integer!)
@@ -122,18 +122,23 @@ Before we start to animate the parameters of Draw commands, we need to indicate 
 The values set by `start` are used until the next `start` construct. A set-word! can precede `start` and thus the following animation frames can refer to it.
 The `start` declaration does not animate anything by itself. In order to animate a value, one needs to use `from value1 to value2` syntax:
 
-    from <value> to <value> <actors>
+   <id> from <value> to <value>  <speed> <actors>
     
+    <id> : (optional) identifier – only needed for pausing and resuming (set-word!)
     <value>  : start or end value to be animated (number! pair! tuple!)
+    <speed> : (optional) animation speed (<anim-speed>)
     <actors> : (optional) <event> block!
     
-    Actors specify blocks of code that is evaluated at specific animation events. Events are:
+    Actors specify blocks of code thata is evaluated at specific animation events. Events are:
     
     on-start  : once, at the animation start
     on-exit   : once, when the animation ends
     on-time   : each time the animation is updated. 
-    
- `on-time` is triggered at the rate specified by the face to which the draw block is attached. `time` word can be used within the block following `on-time` - it holds the time elapsed from the animation start.
+
+    anim-speed :  'speed <speed-value>
+    <speed-value> : the speed value (number!)
+
+`on-time` is triggered at the rate specified by the face to which the draw block is attached. `time` word can be used within the block following `on-time` - it holds the time elapsed from the animation start.
     
     
 All numeric values in an animation block can be animated using `from` - integers, floats, pairs and tuples (for colors).
@@ -407,16 +412,23 @@ Path contents are limited to just three types of primitives: lines, circular arc
 
 For best results it's a good idea to match the starting point of the path as close as possible. The number of points of the paths doesn't matter.
 
+# Animation speed
+
+When you need to play an animation within a `start` reference frame with a different speed, you can use the `speed` parameter. It is supported by both simple animations (`from`) and all effects with the expection of `text-fx`
+
+## Animation speed examples:
+
+    translate white-box: from 30x95 to 550x95 speed 2.5 [box 0x0 20x20]
+    particles fleet rocket expires after 6 speed 2
+    curve-fx info red-info from 1.0 to 0.0 expires after 6 speed 125%
+
 # Ideas for future work
 There are many things that can be added to the animation system:
 
 ## Animation control
-- pause
-- resume
 - stop
 - rewind
 - ffd
-- change animation speed
 
 ## Text-fx to work on specified parts of text
 Now it works on all components, depending on the mode - lines, words or characters. It would be good to specify which ones to animate. Possible parameters: index, range, or block of indices.
