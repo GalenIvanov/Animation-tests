@@ -177,36 +177,44 @@ Prototype is a block of set-word! and value pairs that is used to create each in
 
     
     number:     <integer!>
-    emitter:    [<pair!> <pair!>]
-    direction:  <integer float!>
-    dir-rnd:    <integer float!>
-    speed:      <integer float!>
-    speed-rnd:  <integer float!>
+    emitter:    <function!>
+    absorber:   <function!>
     shapes:     <block!>
-    limits:     <block!>
-    new-coords: <block!>
-    forces:     <block> 
-    
+    forces:     <block!>
+    ffd:        <integer! float!>
+	    
 
-All of the above pairs are optional. If some is not present, the default value is obtained from the prototype object:
+
+Most of the above pairs are optional. If some is not present, the default value is obtained from the prototype object:
 
     particle-base: make object! [
-        number:     100                  ; how many particles
-        emitter:    [0x100 200x100]      ; where particles are born - a box
-        direction:  90.0                 ; degrees
-        dir-rnd:    0.0                  ; random spread of direction, symmetric
-        speed:      1.0                  ; particle base speed
-        speed-rnd:  0.2                  ; randomization of speed for each particle, always added
-        shapes:     speck                ; a block of draw blocks (shapes to be used to render particles)
-        limits:     []                   ; conditions for particle to be respawned - based on coordinates 
-        new-coords: []                   ; where reposition the particle
-        forces:     []                   ; what forces affect the particles motion - a block of words
+        number:   100                  ; how many particles
+        start:    1.0                  ; start time of the effect
+        duration: 5.0                  ; duration of the effect
+        elapsed:  0.0
+        shapes:   speck                ; a block of draw blocks (shapes to be used to render particles)
+        ffd:      0                    ; how many seconds of the animation to be skipped
+        forces:   []                   ; what forces affect the particles motion - a block of words
+        started:  false
+        finished: false
+        expires:  0                   ; when to clear the particle draw block
+        paused:   false
+        bi-dir:   false
+        on-start: []
+        on-time:  []
+        on-exit:  []
     ]
+	    
+Only `emitter` and `absorber` are mandatory, since they define how are the particles generated and when they cease to exist and need to be respawned.
 
 
 ### Generation
 
-`emitter` is a block of two pairs that form a box. Each particle is born initially at a random place in this rectangular area. `direction` indicates in which direction the particle will be moving in degrees. `dir-rnd` adds randomness to the direction. `speed` and `speed-rnd` define the particle's speed. `shapes` is a block of draw block that are used to display the particles. The shapes in block are randomly chosen at the initialization phase.
+`emitter` is a function with no arguments that returns a block that holds the parameters of the particle to be generated. These parameters are `x` and `y` coordinates (integer! float!) where the particle starts its life cycle, `dir` - direction in which it moves (integer! float!), `speed` - its speed (integer! float!). `color` (tuple! word!) can be used for fade-in and fade-out effects, but only if the description of the particle (given by `shapes`) does not include `fill-pen`, since it will overwrite this color. There is a time parameter `t` that holds the elapsed time for the particle. It can be used by `absorber` function to decide if its time 
+
+So, the `emitter` function takes no arguments, generates some values and returns a block similar to this one:
+	    
+	    compose [x: (x) y: (y) dir: (d) speed: (s) t: (random 8.0)]
 
 ### Movement
 
