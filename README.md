@@ -170,6 +170,7 @@ Next `start` resets the delay.
     <id>        : effect identifier (word!)
     <prototype> : a block describing the particles (block! word!)
     <expires>   : (optional) when to clear the effect's draw black
+    <speed>     : (optional) animation playing speed (‘speed number!)
     <actors>    : (optional) actors for the events
 
 Prototype is a block of set-word! and value pairs that is used to create each individual partilce as well as to set up the entire effect:
@@ -259,6 +260,7 @@ The starting time of `particles` is taken from the last `start` (and subsequent 
     <effect>   : effect data (block! word!)
     <value>    : position on the curve (float! (from float! to float!))
     <expires>  : (optional) when to clear the effects draw block (same as particles)
+    <speed>    : (optional) animation playing speed (‘speed number!)
     <actors>   : (optional) on event actors (same as from)
 
 Effect data is a block with set-word! and value pairs: 
@@ -356,6 +358,7 @@ In the above example the multiline string is displayed character after character
     <width>    : line width (integer!)
     <color>    : line color (tuple! word!)
     <expires>  : (optional) when to clear the effects draw block (same as particles)
+    <speed>    : (optional) animation playing speed (‘speed number!)
     <actors>   : (optional) on event actors (same as from)
     
 Path contents are limited to just three types of primitives: lines, circular arcs and custom (multipoint) Bézier curves. The path is not closed automatically. Please note that only the `x` radius of an arc is used (no elliptical arcs)
@@ -385,6 +388,7 @@ Path contents are limited to just three types of primitives: lines, circular arc
     <path>     : a block of lines, arcs and custom Bézier curves (block!)
     <visible>  : (optional) Is the first block displayed at the start? <visible <logic!>> 
     <expires>  : (optional) when to clear the effects draw block (same as particles)
+    <speed>    : (optional) animation playing speed (‘speed number!)
     <actors>   : (optional) on event actors (same as from)
 
 ### Morph-path example
@@ -415,7 +419,7 @@ For best results it's a good idea to match the starting point of the path as clo
 
 # Animation speed
 
-When you need to play an animation within a `start` reference frame with a different speed, you can use the `speed` parameter. It is supported by both simple animations (`from`) and all effects with the expection of `text-fx`
+When you need to play an animation within a `start` reference frame with a different speed, you can use the `speed` parameter. It is supported by both simple animations (`from`) and all effects with the exception of `text-fx`
 
 ## Animation speed examples:
 
