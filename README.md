@@ -52,6 +52,10 @@ There are several predefined [easing](https://easings.net/) functions:
 - ease-in-out-bounce
 - ease-steps
 
+<img src="easings.png">
+
+Screnshot taken from [easings.net](https://easings.net/)
+
 ## Animate and Draw
 
 The main goal of Animate is to extend Draw in the time domain. This is done by using "augmented" draw block. Every block of Draw commands is a valid animation block. In order to animate the various Draw primitives, Animate introduces new keywords. Before we present them, let's see how to connect `animate` to Draw.
