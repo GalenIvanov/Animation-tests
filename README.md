@@ -453,6 +453,12 @@ When you need to play an animation within a `start` reference frame with a diffe
     translate white-box: from 30x95 to 550x95 speed 2.5 [box 0x0 20x20]
     particles fleet rocket expires after 6 speed 2
     curve-fx info red-info from 1.0 to 0.0 expires after 6 speed 125%
+	    
+
+# Pausing and resuming animations
+
+`toggle-animation` function can be used to pause or resume an animation. It needs only one argument - a `word!` identifying the animation. It doesn't currently work for `text-fx` effect, because it uses a different approach.
+	    
 
 # Ideas for future work
 There are many things that can be added to the animation system:
