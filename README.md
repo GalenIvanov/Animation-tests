@@ -184,8 +184,7 @@ Prototype is a block of set-word! and value pairs that is used to create each in
     ffd:        <integer! float!>
 	    
 
-
-Most of the above pairs are optional. If some is not present, the default value is obtained from the prototype object:
+Most of the above parameters are optional. If some is not present, the default value is obtained from the prototype object:
 
     particle-base: make object! [
         number:   100                  ; how many particles
@@ -205,41 +204,57 @@ Most of the above pairs are optional. If some is not present, the default value 
         on-exit:  []
     ]
 	    
-Only `emitter` and `absorber` are mandatory, since they define how are the particles generated and when they cease to exist and need to be respawned.
+Only `emitter` and `absorber` are mandatory, since they define how the particles are generated and when they cease to exist and need to be respawned.
 
 
 ### Generation
 
 `emitter` is a function with no arguments that returns a block that holds the parameters of the particle to be generated. These parameters are `x` and `y` coordinates (integer! float!) where the particle starts its life cycle, `dir` - direction in which it moves (integer! float!), `speed` - its speed (integer! float!). `color` (tuple! word!) can be used for fade-in and fade-out effects, but only if the description of the particle (given by `shapes`) does not include `fill-pen`, since it will overwrite this color. There is a time parameter `t` that holds the elapsed time for the particle. It can be used by `absorber` function to decide if its time 
 
-So, the `emitter` function takes no arguments, generates some values and returns a block similar to this one:
+So, the `emitter` function takes no arguments, generates some values and returns a block of named values for some or any of `x y dir speed color t` parameters:
 	    
 	    compose [x: (x) y: (y) dir: (d) speed: (s) t: (random 8.0)]
+	
+All the individual particle's parameters and their default values are listed below:
+	    
+    a-particle: context [
+        x: 0.0                ; X position
+        y: 0.0                ; Y position
+        dir: 45.0             ; movement direction in degrees
+        speed: 1.0            ; speed
+        scale-x: 1.0          ; X scale factor 
+        scale-y: 1.0          ; Y scale factor
+        color: transparent    ; fill-pen color
+        t: 0.0                ; elapsed time for the particle
+        shape: []             ; drawing commands 
+        data: none
+    ]	    
 
+	    
 ### Movement
 
-At each frame the position of each particle is updated using `speed`, `direction`. `speed` and `direction` are influenced by any functions in the `forces` block. There are two pre-defined functions: `gravity` and `drag`. Each force- function should receive two arguments - `dir` and `speed` (current particle's direction angle and speed) and should return a block [dir speed].
+At each frame the position of each particle is updated automatically using the `dir` and `speed`parameters. `dir` and `speed` (as well as any other parameter) can be  influenced by any functions in the `forces` block. Each force- function should receive a single parameter - a block of current particle's parameters and should return the block after modification.
 
 **Example force- function**
 
-    drag: func [dir speed][
-        speed: speed * 0.99
-        reduce [dir speed]
+     wind: function [p][
+        if p/dir < 135 [p/dir: 135 + p/dir / 2.0]
+        p/dir: p/dir + 2.0 - random 4.0
+        p
     ]
 
 ### Respawn particles
 
-Particles coordinates are tested against the rule for `x` and `y` in the `limits` block. If the rule returns `false`, the particle's position is reset using the values for `x` and `y` set in `new-coords` block.
+The updated particle's coordinates are tested with the `absorber` function with particles's block as a single argument. If the function returns `true`, the particle's position is reset by invoking the `emitter` function.
 
-**Examples for `limits`**
+**Examples for `absorber`**
 
-    [x > 550 y < 60]
-    [120.0 < sqrt x - 300.0 ** 2 + (y - 200.0 ** 2)] 
-    
-**Examples for `new-coords`**
-
-    [x: 300.0 y: 200.0]
-    [x: 455.0 + random 90.0 y: 340.0]    
+    absorber: function [
+        {Returns true if the particle needs to be re-emitted}
+        p
+    ][
+        to-logic any [p/x < 50 p/x > 150 p/y < 50 p/y > 350]
+    ]
 
 
 ### Expires
