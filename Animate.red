@@ -187,12 +187,11 @@ context [
     ]
     
     process-timeline: has [
-        t target v w d dt old-t
+        t target v w d dt old-t opposite
     ][
         t: to float! difference now/precise st-time
         dt: to float! difference (old-t: now/precise) prev-t        
         prev-t: old-t
-        
         t-keep: t
         foreach [key val] timeline [
             w: val/2
@@ -236,6 +235,7 @@ context [
                             ][
                                 do w/on-exit
                                 remove/key timeline key
+                                if opposite [remove/key timeline opposite]
                                 if named-animations/:key [remove/key named-animations key]
                             ]    
                         ]                    
@@ -859,7 +859,7 @@ context [
             dir: 45.0             ; movement direction in degrees
             speed: 1.0            ; speed
             scale-x: 1.0          ; X scale factor 
-            scale-y: 1.0          ; Y sckae factor
+            scale-y: 1.0          ; Y scale factor
             color: transparent    ; fill-pen color
             t: 0.0                ; elapsed time for the particle
             shape: []             ; drawing commands 
