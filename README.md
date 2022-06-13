@@ -457,7 +457,13 @@ When you need to play an animation within a `start` reference frame with a diffe
 
 # Pausing and resuming animations
 
-`toggle-animation` function can be used to pause or resume an animation. It needs only one argument - a `word!` identifying the animation. It doesn't currently work for `text-fx` effect, because it uses a different approach.
+`toggle-animation` function can be used to pause or resume an animation. It needs only one argument - a `lit-word!` identifying the animation. It doesn't currently work for `text-fx` effect, because it uses a different approach.
+	    
+## `toggle-animation` example
+	   
+    toggle-animation 'vulcano
+	    
+Please note that `toggle-animation` is usually used in your event-processing code.
 	    
 
 # Ideas for future work
