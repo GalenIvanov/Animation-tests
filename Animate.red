@@ -12,7 +12,6 @@ context [
 
     st-time: now/precise
     prev-t: 0.0   ; 
-    pascal: none
     text-data: make map! 20
     draw-blocks-data: make map! 20 
     timeline: make map! 100 ; the timeline of effects key: value <- id: effect
@@ -412,28 +411,15 @@ context [
     ]
     
     ;------------------------------------------------------------------------------------------------
-    pascals-triangle: function [
-        {Creates the first n rows of the Pascal's triangle, referenced by nCk}
-        n [integer!]
-    ][
-        row: make vector! [1]
-        PT: make block! n
-        append/only PT copy row
-        collect/into [
-            loop n [
-                row: add append copy row 0 head insert copy row 0
-                keep/only copy row
-            ]
-        ] PT
-    ]
-    
-    pascal: pascals-triangle 30; stores the precalculated values for the first 30 rows  
-    
+
     nCk: function [
-        {Calculates the binomial coefficient, n choose k}
-        n k
+        {Calculates the binomial coefficient. a.k.a n choose k }
+        n [integer!]  "size of the set"
+        k [integer!]  "size of the subset to get from n"
     ][
-        pascal/(n + 1)/(k + 1)
+        p: 1
+        repeat i k [p: n + 1 - i / i * p]
+        to-integer p
     ]
     
     bezier-n: function [
@@ -1304,7 +1290,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             ]
         )
         any [
-            anim-speed (prt/t-speed: time-scale probe prt/duration: prt/duration / time-scale)
+            anim-speed (prt/t-speed: time-scale prt/duration: prt/duration / time-scale)
           | [
                 'expires [
                     ['after set particles-end number!] 
