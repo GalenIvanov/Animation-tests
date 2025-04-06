@@ -10,8 +10,8 @@ fnt1: make font! [name: "Brush Script MT" size: 28 color: 25.12.5.255]
 
 text1: {Red’s ambitious goal is to build the world’s
 first full-stack language, a language you can
-use from system programming tasks,
-up to high-level scripting through DSL.}
+use from system programming tasks, up to
+high-level scripting through DSL.}
 
 txt-bl: compose [
     id: 'test text: (text1) font: (fnt1)
@@ -20,7 +20,7 @@ txt-bl: compose [
 ]
 
 anim-block: compose [
-    pen white fill-pen (papaya + 0.20.30) line-width 2 box 0x0 720x200
+    pen white fill-pen (papaya + 0.20.30) line-width 2 box 0x0 765x200
     
     st: start 2.0 duration 0.3 delay 0.02 ease 'ease-in-out-cubic
     text-fx txt-bl text-scale from 4.0 to 1.0 from 4.0 to 1.0
@@ -48,6 +48,6 @@ print "start"
 
 view [
     title "Animate"
-    canvas: base 600x200 black rate 67
+    canvas: base 765x200 black rate 67
     draw animate anim-block
 ]
