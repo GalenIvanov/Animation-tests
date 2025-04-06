@@ -175,8 +175,8 @@ context [
     
     set 'tween function [
         {Interpolates a value at t using easing function}
-        val1     [number! pair! tuple!]   {Value to interpolate from}
-        val2     [number! pair! tuple!]   {Value to interpolate to}
+        val1     [number! planar! tuple!]   {Value to interpolate from}
+        val2     [number! planar! tuple!]   {Value to interpolate to}
         t        [float!]                 {float! from 0.0 to 1.0}
         ease     [any-word! function!]    {Easing function}
     ][
@@ -424,7 +424,7 @@ context [
     
     bezier-n: function [
         {Calculates a point in the Bezier curve, defined by pts, at t}
-        pts [block!] {a set of pairs}
+        pts [block!] {a set of planar coords}
         t   [float!] {offset in the curve, from 0.0 to 1.0}
     ][
         if t < 0.0 [return pts/1]
@@ -437,13 +437,13 @@ context [
             by: c * p/y + by
             i: i + 1
         ]
-        as-pair bx by
+        as-point2D bx by
     ]
     
     bezier-tangent: function [  ; needs a better name!
         {Calculates the tangent angle for a Bezier curve
          defined with pts at point t}
-        pts [block!] {a set of pairs}
+        pts [block!] {a set of planar coords}
         t   [float!] {offset in the curve, from 0.0 to 1.0}
     ][
         p1: bezier-n pts t
@@ -454,7 +454,7 @@ context [
     bezier-lengths: function [
         {Returns a block of accumulated lengths of the linear segments
          a bezier curve can be simplified to}
-        pts  [block!]   {a set of 2d points defining a Bezier curve}
+        pts  [block!]   {a set of planar coords defining a Bezier curve}
         seg-n [integer!] {number of linear segments to divide the curve into}
     ][
         t: 0.0
@@ -524,7 +524,7 @@ context [
         fnt [object!]
     ][
         new-src: head append copy src "|"  ; to find the last offset
-        size: as-pair fnt/size * length? new-src fnt/size
+        size: as-point2D fnt/size * length? new-src fnt/size
         ; as a general rule, never use make face!, only make-face
         txt: make make-face 'rich-text compose [size: (size) text: (new-src)]
         txt/font: copy fnt
@@ -537,7 +537,7 @@ context [
         src [string!]
         fnt [object!]
     ][
-        size: as-pair fnt/size * length? src fnt/size
+        size: as-point2D fnt/size * length? src fnt/size
         txt: make face! compose [size: (size)  type: 'text text: (src)]
         txt/font: copy fnt
         size-text txt
@@ -550,11 +550,11 @@ context [
         src  [string!]   {Text to split}
         fnt  [object!]   {Font to use for measurements}
         mode [any-word!] {chars, words or lines}
-        pos  [pair!]     {coordinates of the starting point}
+        pos  [planar!]     {coordinates of the starting point}
         sx   [number!]   {x spacing factor}
         sy   [number!]   {y spacing factor} 
     ][
-        size: as-pair fnt/size * length? src fnt/size
+        size: as-point2D fnt/size * length? src fnt/size
         txt: make make-face 'rich-text compose [size: (size) text: (src)]
         txt/font: copy fnt
         txt1: make face! compose [size: (size)  type: 'text text: (src)]
@@ -668,7 +668,7 @@ context [
                     fnt-id: to set-word! item/1
                     posx: item/2/x * t-obj/sp-x
                     posy: item/2/y * t-obj/sp-y
-                    p: as-pair posx posy
+                    p: as-point2D posx posy
                     keep compose [
                         (fnt-id) font (get fnt-name)
                         text (t-obj/posXY + p) (item/4)
@@ -829,9 +829,16 @@ context [
             shapes:   speck                ; a block of draw blocks (shapes to be used to render particles)
             ffd:      0
             forces:   []                   ; what forces affect the particles motion - a block of words
+;            absorber: function [p][false]  ; don't respawn particles by default
+;			absorber:	function [
+;				    		{Returns true if the particle needs to be re-emitted}
+;						    p [object!] "Particle"
+;						][
+;						    no
+;						]
             started:  false
             finished: false
-            expires:  0                   ; when to clear the particle draw block
+            expires:  0                    ; when to clear the particle draw block
             paused:   false
             bi-dir:   false
             on-start: []
@@ -890,7 +897,7 @@ context [
                 p: create-particle proto
                 append/only particles/spec p
                 d: compose/deep [
-                    translate (as-pair to-integer p/x to-integer p/y) [
+                    translate (as-point2D p/x p/y) [
                         scale 1.0 1.0 fill-pen (p/color) (p/shape)
                     ]
                 ]
@@ -950,7 +957,7 @@ context [
                     p/t: 0.0
                 ]
                 
-                pd/2: as-pair to-integer p/x to-integer p/y
+                pd/2: as-point2D to-integer p/x to-integer p/y
                 pd/3/2: p/scale-x
                 pd/3/3: p/scale-y
                 pd/3/5: p/color
@@ -1001,9 +1008,9 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         parse dest rule: [
             any [
                 p: set target word! (offs: 1 k: 1)    
-              | p: change [[integer! | float! | pair!] (offs: offs + 1)]
+              | p: change [[integer! | float! | planar!] (offs: offs + 1)]
                 (
-                    if not find/only do-not-scale reduce[target offs] [k: 10]
+                    if not find/only do-not-scale reduce [target offs] [k: 10]
                     p/1 * k
                 )
               | tuple! | string!
@@ -1096,12 +1103,14 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     
     rescale: does [
         if all [
-            find [integer! float! pair!] type?/word scaled
-            not find/only do-not-scale reduce[target val-idx]
-        ] [scaled: scaled * scale-coef * 10]
+            find [integer! float! pair! point2D!] type?/word scaled
+            not find/only do-not-scale reduce [target val-idx]
+        ][
+        	scaled: scaled * scale-coef * 10
+        ]
     ]
     
-    value: [set scaled [float! | tuple! | string! | object! | integer! | pair!] (rescale)]
+    value: [set scaled [float! | tuple! | string! | object! | integer! | planar!] (rescale)]
     
     time-value: [time! | float! | integer!]
     
@@ -1610,14 +1619,14 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     path: [
         some [
             [
-                'line set p1 pair! rest-pts: some pair!
+                'line set p1 planar! rest-pts: some planar!
                 p-end: (lines: head insert copy/part rest-pts p-end p1)
                 (append path-block get-lines lines)
             ]
           | [
                 'arc 
-                set arc-center pair!
-                set arc-radius pair!  ; only x is used - circular arcs !!!
+                set arc-center planar!
+                set arc-radius planar!  ; only x is used - circular arcs !!!
                 set arc-begin number!
                 set arc-sweep number!
                 (cur-arc: reduce ['arc arc-center * 10 10x10 * arc-radius arc-begin arc-sweep])
@@ -1625,9 +1634,9 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             ]
           | [
                 'bezier
-                set p1 pair!
-                set p2 pair!
-                rest-bezier: some pair! end-bezier: (
+                set p1 planar!
+                set p2 planar!
+                rest-bezier: some planar! end-bezier: (
                     b-lines: head insert copy/part rest-bezier end-bezier reduce [p1 p2] 
                 )
                 (
@@ -1715,10 +1724,10 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                             line-len: data-len/1
                             
                             if carry > 0 [                         ; draw the remaining part of a line
-                                keep reduce ['line as-pair px py]
+                                keep reduce ['line as-point2D px py]
                                 px: px + (carry * cosine phi)
                                 py: py + (carry * sine phi)
-                                keep as-pair px py
+                                keep as-point2D px py
                                 line-len: line-len - carry
                             ]
                             
@@ -1726,19 +1735,19 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                             dy: seg-len * sine phi
                             
                             while [line-len >= seg-len][       ; break the line
-                                keep compose [pen (color) line (as-pair px py)]
+                                keep compose [pen (color) line (as-point2D px py)]
                                 px: px + dx
                                 py: py + dy
-                                keep as-pair px py
+                                keep as-point2D px py
                                 line-len: line-len - seg-len
                             ]
                             if line-len > 0 [carry: line-len]
                             
                             if carry > 0 [                         ; draw the remaining part of a line
-                                keep compose [pen (color) line (as-pair px py)]
+                                keep compose [pen (color) line (as-point2D px py)]
                                 px: px + (carry * cosine phi)
                                 py: py + (carry * sine phi)
-                                keep as-pair px py
+                                keep as-point2D px py
                                 carry: seg-len - carry
                             ]
                             data-len: next data-len
@@ -1883,7 +1892,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                             phi: arctangent2 data/(n + 1)/y - py data/(n + 1)/x - px
                             line-len: data-len/1
                             
-                            keep as-pair px py
+                            keep as-point2D px py
                             
                             dx: seg-len * cosine phi
                             dy: seg-len * sine phi
@@ -1893,7 +1902,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
                             loop k [
                                 px: px + dx
                                 py: py + dy
-                                keep as-pair px py
+                                keep as-point2D px py
                             ]
                             
                             if (line-len // seg-len) > 0 [keep data/(n + 1)]
@@ -1951,12 +1960,12 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             while [(absolute a) < absolute b + s][
                 px: (r * cosine a) + c/x
                 py: (r * sine a) + c/y
-                keep as-pair px py
+                keep as-point2D px py
                 a: a + d-phi
             ]
             px: (r * cosine b + s) + c/x
             py: (r * sine b + s) + c/y
-            keep as-pair px py
+            keep as-point2D px py
         ]
     ]
     
@@ -2106,7 +2115,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
     p-bitmap: [
         keep 'bitmap 
         p-img: keep word!
-        0 2 [keep pair!]     ; start; end
+        0 2 [keep planar!]     ; start; end
         opt keep tile-mode  ;spread method
         scale-coef-up ; scale up 10x because of the initial scal 0.1
     ]
@@ -2126,9 +2135,10 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         keep block!
     ]
     
-    from-pair:   [from | set v1 pair! keep (v1 * 10)]
+    ; Coerce pair to point.
+    from-planar:   [from | set v1 planar! keep (v1 * (10, 10))]
     from-number: [from | keep number!]  ; not scaled - for angles and scaling
-    pair-val: [pair! | ['from pair! 'to pair!]] 
+    planar-val: [planar! | ['from planar! 'to planar!]] 
     
     image-rule: [
         img-mark: opt [set user-target set-word!]
@@ -2144,8 +2154,8 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             sz: img-d/size
         ) 
         [
-            [ahead [2 pair-val]2 [from-pair (val-ofs: val-ofs + 1)]]
-          | [ahead pair-val from-pair keep (sz + v1 * 10 )] 
+            [ahead [2 planar-val]2 [from-planar (val-ofs: val-ofs + 1)]]
+          | [ahead planar-val from-planar keep (sz + v1 * 10 )] 
           | [keep (0x0) keep (sz * 10)]
         ]
         ; 4-point mode not yet implemented in Draw!
@@ -2171,7 +2181,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             target: 'translate
         )
         :translate-mark word
-        from-pair (scale-coef: 1.0)
+        from-planar (scale-coef: 1.0)
     ] 
     
     rotate-rule: [
@@ -2182,7 +2192,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         )
         :rotate-mark word (scale-coef: 0.1)
         from-number (scale-coef: 1.0 val-ofs: val-ofs + 1)
-        opt from-pair
+        opt from-planar
     ]
     
     
@@ -2194,10 +2204,10 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         )
         :trans-mark
         word 
-        opt [ahead pair-val from-pair (val-idx: 3 val-ofs: val-ofs + 1)] ; center
+        opt [ahead planar-val from-planar (val-idx: 3 val-ofs: val-ofs + 1)] ; center
         3 [from-number (val-ofs: val-ofs + 1)]    ; rotation angle, scale X, scale Y
         (val-idx: 1)                              
-        from-pair                                 ; translation amount
+        from-planar                                 ; translation amount
         opt into anim-rule                        ; block of Draw commands 
     ]
     
@@ -2212,7 +2222,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
         keep (to-set-word cur-target)
         keep (to-word "clip")
         [
-            [2 from-pair]    ; start - end
+            [2 from-planar]    ; start - end
           | [into anim-rule] ; shape
         ]  
         opt keep comb-modes
@@ -2290,7 +2300,7 @@ clip shape move line arc curve curv qcurve qcurv hline vline} charset reduce [sp
             exit
         ]
         
-        insert-event-func :anim-on-time
+        insert-event-func 'animate :anim-on-time
         st-time: prev-t: now/precise
         draw-block
     ]
